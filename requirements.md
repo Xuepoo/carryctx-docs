@@ -555,10 +555,17 @@ Progress Item 至少具有：
 类型可以包括：
 
 * Todo
-* Completed
 * Blocker
 * Risk
 * Note
+
+生命周期状态包括：
+
+* Open
+* Completed
+* Removed
+
+`progress done` 创建一个已完成的 Todo；类型和生命周期状态不得混为同一字段。
 
 ---
 
@@ -2570,7 +2577,11 @@ SQLite Driver 应支持：
 * Foreign Key
 * Backup
 
-具体 Driver 在技术选型阶段确定。
+v0.1 固定使用 Bun 内置的：
+
+```typescript
+import { Database } from "bun:sqlite";
+```
 
 ---
 

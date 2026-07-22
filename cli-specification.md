@@ -64,6 +64,7 @@ carryctx resume --json
 --yes
 --dry-run
 --non-interactive
+--config-compat <error|warn>
 --version
 --help
 ```
@@ -255,6 +256,12 @@ carryctx init
 --force
 --minimal
 --install-skill
+```
+
+`--force` 只能重建或修复项目声明文件和缺失 Schema，不得覆盖可读取的状态数据库、修改 Project ID 或删除 Task。交互模式必须确认；非交互模式必须同时使用：
+
+```bash
+carryctx init --force --yes --non-interactive
 ```
 
 行为：
@@ -703,6 +710,14 @@ carryctx task depend CTX-0002 --on CTX-0001
 carryctx task undepend CTX-0002 --on CTX-0001
 ```
 
+`depend` 支持：
+
+```text
+--kind <strong|informational>
+```
+
+默认使用 `strong`。
+
 添加依赖前必须检测环。
 
 ---
@@ -853,7 +868,6 @@ Accept 操作应：
 ```text
 carryctx event list
 carryctx event show
-carryctx event tail
 ```
 
 过滤：
@@ -1079,6 +1093,7 @@ experimental:
 deferred:
   project export/import
   worktree remove/prune
+  event tail
   skill update/export
   shell completion
 ```

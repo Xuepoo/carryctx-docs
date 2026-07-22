@@ -89,12 +89,14 @@ Each state-changing command maps to one use case with an explicit input and resu
 Commands that also mutate Git, TOML, registry, backup, or filesystem state use a recoverable operation protocol because those resources cannot share a SQLite transaction:
 
 1. preflight all domain and external constraints without mutation;
-2. write an `operations` row with a stable operation ID, type, intended effect, and `prepared` state;
+2. write an owner-only external journal under `<git-common-dir>/carryctx/operations/<operation-id>.json` and mirror it to the `operations` table when a database is available;
 3. apply the external effect idempotently using an atomic temporary-file rename or deterministic Git target;
 4. in one SQLite transaction, persist the domain projection, append its Event, and mark the operation `completed`;
 5. update the non-authoritative global registry last;
 6. on failure, mark the operation `failed` when possible and return a recovery suggestion; and
-7. on the next matching command or `doctor`, inspect prepared/failed operations and either finalize an already-observed effect or offer a safe retry.
+7. on the next matching command or `doctor`, inspect external and database prepared/failed operations and either finalize an already-observed effect or offer a safe retry.
+
+Every CLI command acquires an atomic filesystem admission lock at `<git-common-dir>/carryctx/locks/command.lock/` before opening a project database and releases it after all connections close. The lock directory contains PID, host, operation ID, and start time. A live lock is never stolen; an expired lock is repairable only when the recorded local process no longer exists, and remote/uncertain locks require `doctor --fix --yes`. This deliberately serializes v0.1 project commands, prevents a connection from surviving a restore swap, and still produces deterministic claim-race outcomes.
 
 `init` bootstraps this protocol by creating configuration and database files at temporary sibling paths, validating both, renaming the database first and configuration second, then registering the project last. Repeated `init` reconciles any partial bootstrap instead of replacing valid state. Git worktree creation never automatically deletes a created worktree as compensation; a failed finalization is recorded and recovered by `doctor`.
 
@@ -207,7 +209,7 @@ Tables merge recursively, arrays replace by default, and scalar values override.
 
 `CARRYCTX_CONFIG` supplies the explicit extra configuration file when `--config` is absent. `--config-compat <error|warn>` controls unknown-key handling and defaults to `error`. Nested environment values use `CARRYCTX_<SECTION>__<KEY>` and are schema-coerced rather than accepted as arbitrary strings.
 
-`config set` and `config unset` require exactly one of `--global`, `--project`, or `--local`; there is no implicit write scope. Mutations preserve unrelated TOML fields and comments where the TOML library supports it, validate the complete result before replacement, and use the recoverable atomic-file protocol.
+`config set` and `config unset` require exactly one of `--global`, `--project`, or `--local`; there is no implicit write scope. Mutations preserve unrelated TOML values, serialize the target file in canonical key order, validate the complete result before replacement, and use the recoverable atomic-file protocol. Because `smol-toml` does not expose a comment-preserving syntax tree, v0.1 warns that comments in a file changed by these commands are not preserved; users who require comment retention edit and validate the file directly.
 
 The global registry at `${XDG_STATE_HOME:-$HOME/.local/state}/carryctx/registry.sqlite` is a non-authoritative discovery index with its own migrations. It contains `projects(id, repository_root, git_common_dir, config_path, last_seen_at)` and `path_mappings(path_prefix, project_id)`. Paths and project IDs are unique, longest matching prefixes win, and stale entries are ignored when the repository or configuration no longer exists. Registry writes use SQLite transactions and the same busy timeout; failure produces a warning because the project database remains authoritative.
 
@@ -235,13 +237,13 @@ The closed transition matrix is:
 | `task start` | `ready` | `in_progress` | Requires existing current/explicit owner; otherwise use claim |
 | `task release` | `in_progress`, `blocked` | `ready` if dependencies complete, otherwise `planned` | Current owner or explicit override; clears owner and requires no active Session |
 | `task block` | `ready`, `in_progress`, `review` | `blocked` | Preserves owner and requires a non-empty reason |
-| `task unblock` | `blocked` | `in_progress` when owned, otherwise `ready` or `planned` by dependency state | Preserves owner |
+| `task unblock` | `planned`, `blocked` | `in_progress` when owned, otherwise `ready`; incomplete strong dependencies reject the transition | Preserves owner |
 | `task review` | `in_progress` | `review` | Preserves owner |
 | `task complete` | `review`, `in_progress` | `completed` | Preserves final owner; open work warns or fails under strict completion |
 | `task cancel` | Any nonterminal state | `cancelled` | Clears owner and requires a non-empty reason |
 | `task reopen` | `completed`, `cancelled` | `ready` if dependencies complete, otherwise `planned` | Clears owner |
 
-Creation defaults to `planned`; `--status ready` is allowed only when strong dependencies are already complete. Adding an incomplete strong dependency to a ready unowned Task moves it to `planned`; removing/completing the final blocker makes it eligible for explicit `task unblock` or ready projection but does not silently start it.
+Creation defaults to `ready` when all supplied strong dependencies are complete and to `planned` when any are incomplete. Explicit `--status planned` remains available for intentionally unready work; explicit `--status ready` is accepted only when strong dependencies are complete. Adding an incomplete strong dependency to a ready unowned Task moves it to `planned`. `task unblock` accepts `planned` as well as `blocked` and moves a dependency-ready unowned Task to `ready`; this supplies the explicit `planned → ready` transition. The default create-then-claim workflow in AC-002 therefore succeeds.
 
 Claim uses `BEGIN IMMEDIATE` with SQLite `busy_timeout = 5000`. Once the write lock is held, the use case re-reads the Task, Agent policy, dependencies, current Agent workload, and current worktree binding. A current worktree bound to another nonterminal Task returns `WORKTREE_TASK_CONFLICT`. The owner/status change uses a conditional update requiring `owner_agent_id IS NULL AND status = 'ready'`; zero changed rows are re-read and mapped to `TASK_ALREADY_CLAIMED` or `INVALID_TASK_TRANSITION`. Lock acquisition is retried with bounded jitter until the busy timeout; only true lock exhaustion maps to database exit code 5.
 
@@ -259,7 +261,7 @@ States are `active`, `paused`, `ended`, `stale`, and `abandoned`. Starting captu
 
 ### 7.5 Progress and history
 
-Progress `type` is `todo`, `completed`, `blocker`, `risk`, or `note`; lifecycle `status` is independently `open`, `completed`, or `removed`. `progress complete` and `reopen` change lifecycle status, while `progress edit`, `reorder`, and `remove` append Events containing before/after values. Removed items are hidden by default but retained for audit.
+Progress `type` is `todo`, `blocker`, `risk`, or `note`; lifecycle `status` is independently `open`, `completed`, or `removed`. `progress todo/block/risk/note` creates the matching type as open, while `progress done` creates a `todo` already marked completed. `progress complete` permits `open → completed`, `reopen` permits `completed → open`, and `remove` permits any non-removed item to become removed. Type never changes during lifecycle transitions. Removed items are hidden by default but retained for audit, and edit/reorder/remove Events contain before/after values.
 
 Checkpoint base rows and Git snapshots are immutable. `checkpoint correct` appends a `checkpoint_corrections` row that may replace semantic summary fields for Resume while never replacing the captured Git snapshot. Resume applies the latest correction and labels it as corrected.
 
@@ -316,7 +318,7 @@ Before upgrading an existing database, CarryCtx acquires an owner-recorded migra
 
 Every v0.1 migration must be transactional. Migration SQL that SQLite cannot run inside a transaction is rejected during build-time migration tests and must be redesigned as a create/copy/swap sequence within one transaction. The runner uses `BEGIN EXCLUSIVE`, applies pending files, validates `foreign_key_check`, records versions/checksums and `project.migrated`, then commits. An interruption before commit rolls back to the pre-migration schema. A checksum mismatch or newer unknown schema returns `MIGRATION_REQUIRED` or `UNSUPPORTED_OPERATION` without modifying state.
 
-Restore acquires the same exclusive lock, closes other application connections, creates and verifies a pre-restore backup, validates the requested backup with `integrity_check`, restores into a temporary sibling database, reopens and validates it, then atomically swaps files. An operation record allows `doctor` to complete or roll back an interrupted swap. Restore never overwrites the only valid database copy. Destructive doctor repairs require `--yes` in non-interactive mode.
+Restore runs while holding the process-wide admission lock, closes its own database connection, creates and verifies a pre-restore backup, validates the requested backup with `integrity_check`, restores into a temporary sibling database, reopens and validates it, then atomically swaps files. The external operation journal survives replacement of `state.sqlite` and records the original, temporary, backup, and active paths plus the completed swap phase. `doctor` uses that journal to complete or roll back an interrupted swap before any project database is opened. Restore never overwrites the only valid database copy. Destructive doctor repairs require `--yes` in non-interactive mode.
 
 ## 10. Git and worktree adapter
 
@@ -329,7 +331,7 @@ The adapter invokes the installed Git CLI with argument arrays, never shell-inte
 - diff statistics without storing full diffs by default;
 - worktree creation and safe preflight checks.
 
-Checkpoint snapshots normalize repository-relative paths. `--include-diff` is explicit and its output is never persisted unless a documented field requires it. Worktree removal is not automated in v0.1 when the directory is dirty, contains untracked files, has active sessions, belongs to an incomplete task, or includes unmerged commits.
+Checkpoint snapshots normalize repository-relative paths. `--include-diff` is explicit and its output is never persisted unless a documented field requires it. Worktree removal and pruning are deferred beyond v0.1.
 
 ## 11. Current entity resolution
 
@@ -377,7 +379,7 @@ Human output remains concise and action-oriented. Snapshot normalization replace
 
 ## 15. Command behavior boundaries
 
-- `init` is idempotent and never destroys existing state without `--force` plus confirmation.
+- `init` is idempotent. `--force` may regenerate invalid/missing `.carryctx/config.toml` and `.carryctx/README.md` after saving sibling backups and may reconcile missing schema objects through migrations; it never replaces a readable state database, changes the project ID, or discards Tasks. Interactive force requires confirmation, and non-interactive force requires both `--force --yes` or returns validation exit code 8.
 - Query commands do not require an active Session unless the query itself is Session-specific.
 - State-changing commands that semantically belong to a Session fail clearly when no Session can be resolved.
 - `resume` never changes ownership, Task state, Git state, or checkpoint history.
@@ -409,11 +411,11 @@ The following commands are required in v0.1; no unlisted subcommand is implied:
 | `worktree` | `create`, `bind`, `list`, `show`, `status`, `unbind` |
 | `decision` | `add`, `list`, `show`, `search`, `supersede` |
 | `handoff` | `create`, `list`, `show`, `accept`, `reject`, `close` |
-| `event` | `list`, `show`, `tail` |
+| `event` | `list`, `show` |
 | `doctor` | inspect and `--fix` |
 | `skill` | `install`, `list`, `path`, `doctor` |
 
-Deferred beyond v0.1 are `project export/import`, `worktree remove/prune`, `skill update/export`, shell completion, and every P2 feature. They may appear in future-facing documentation only when labeled deferred.
+Deferred beyond v0.1 are `project export/import`, `worktree remove/prune`, `event tail`, `skill update/export`, shell completion, and every P2 feature. They may appear in future-facing documentation only when labeled deferred. In particular, no streaming JSON protocol is part of v0.1.
 
 ### 15.2 Command traceability and JSON data contracts
 
@@ -436,7 +438,7 @@ All listed fields are required unless the schema explicitly marks the underlying
 | `worktree` | Singular/mutation/status: `worktree`, `git`, `operation`; list: `worktrees[]` | `worktree.created`, `worktree.bound`, `worktree.unbound` | Git error, path exists/not found, task conflict, dirty preflight | AC-009 |
 | `decision` | Singular/mutation: `decision`, `operation`; list/search: `decisions[]` | `decision.created`, `decision.superseded` | Not found, invalid relation, already superseded | Collaboration tests |
 | `handoff` | Singular/mutation: `handoff`, `status`, `operation`; list: `handoffs[]` | `handoff.created`, `handoff.accepted`, `handoff.rejected`, `handoff.closed` | Not found, invalid transition/target, task claim conflict | AC-006 |
-| `event` | Show: `event`; list/tail: `events[]`, `cursor` | None | Invalid filter/cursor, not found | Audit tests |
+| `event` | Show: `event`; list: `events[]`, `cursor` | None | Invalid filter/cursor, not found | Audit tests |
 | `doctor` | `checks[]`, `summary`, `operations[]`, optional `repairs[]` | `doctor.repaired` plus recovered domain Event | Confirmation required, unsafe/unsupported repair, project/database/Git errors | AC-012 |
 | `skill` | Install: `skill`, `paths`, `operation`; list: `skills[]`; path: `paths`; doctor: `checks[]` | `skill.installed` for project installs | Resource/target not found, permission, invalid bundled manifest | Package smoke |
 
@@ -475,7 +477,7 @@ An end-to-end suite maps one or more tests to every AC-001 through AC-012. The f
 
 ### 17.6 Performance and platform tests
 
-A seeded benchmark fixture contains 1,000 Tasks, 10,000 Events, 100 Sessions, and 20 worktrees. After one warm-up run, state-only `task list --json` and `status --json` each run 20 times and must have a local median below 100 ms; Git-aware `status --json` and `resume --json` each run 10 times and must have a median below 1 second. CI records measurements as evidence and uses a separate non-flaky regression ceiling of twice the target; release reporting states both target and observed values.
+A seeded benchmark fixture contains 1,000 Tasks, 10,000 Events, 100 Sessions, and 20 worktrees. After one warm-up run, state-only `task list --json` and `event list --json` each run 20 times and must have a local median below 100 ms; Git-aware `status --json` and `resume --json` each run 10 times and must have a median below 1 second. CI records measurements as evidence and uses a separate non-flaky regression ceiling of twice the target; release reporting states both target and observed values.
 
 Linux runs the full matrix. macOS CI runs unit tests, project/config path tests, temporary Git repository tests, and package smoke. Path tests inject Linux XDG, macOS platform-directory, and Windows Known Folder adapters on every platform, including separator normalization, drive-root preservation, and case-handling contracts. Windows execution remains unsupported in v0.1, but adapter tests prevent hard-coded Unix home/cache paths.
 
