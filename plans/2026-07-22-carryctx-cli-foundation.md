@@ -407,9 +407,8 @@ git commit -m "feat(init): initialize recoverable shared project state"
 **Files:**
 
 - Modify: `README.md`
-- Create: `docs/development.md`
 - Create: `tests/integration/package/package-smoke.test.ts`
-- Create: `../carryctx-docs/reports/2026-07-22-foundation-test-report.md`
+- Create locally without committing: `../tmp/reports/2026-07-22-foundation-test-report.md`
 
 - [ ] **Step 1: Write a failing package smoke test**
 
@@ -423,7 +422,7 @@ Expected: FAIL on missing packaged migration resolution or executable permission
 
 - [ ] **Step 3: Fix package-relative asset resolution and documentation**
 
-Resolve migrations relative to the built CLI location, preserve the Bun shebang, document Bun installation and `just setup/dev/check`, and document that remote publication is deferred.
+Resolve migrations relative to the built CLI location, preserve the Bun shebang, and keep the user-facing README limited to installation and CLI usage. Do not add internal development documentation to the CLI repository.
 
 - [ ] **Step 4: Run the complete foundation gate**
 
@@ -433,22 +432,15 @@ Expected: format, typecheck, lint, docs, Knip, unit, integration, Actionlint, bu
 
 - [ ] **Step 5: Record evidence**
 
-Create the report with the date, Bun/TypeScript/Git versions, commit, commands, test counts, AC-001 evidence, linked-worktree evidence, known platform limits, and the explicit list of later v0.1 units.
+Create the local-only report with the date, Bun/TypeScript/Git versions, commit, commands, test counts, AC-001 evidence, linked-worktree evidence, known platform limits, and the explicit list of later v0.1 units. Keep it under workspace `tmp/` and do not add it to any Git repository.
 
 - [ ] **Step 6: Commit milestone documentation**
 
 In `carryctx-cli`:
 
 ```bash
-git add README.md docs tests/integration/package
+git add README.md tests/integration/package
 git commit -m "docs: document and verify CLI foundation"
-```
-
-In `carryctx-docs`:
-
-```bash
-git add reports/2026-07-22-foundation-test-report.md
-git commit -m "docs(test): record CLI foundation verification"
 ```
 
 ## Plan self-review
