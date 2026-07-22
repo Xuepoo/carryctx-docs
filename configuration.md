@@ -768,8 +768,8 @@ carryctx --config-compat warn
 ```bash
 carryctx config list
 carryctx config get session.stale_after
-carryctx config set output.color never
-carryctx config unset output.color
+carryctx config set --project output.color never
+carryctx config unset --project output.color
 carryctx config sources
 carryctx config validate
 carryctx config path
@@ -783,9 +783,7 @@ carryctx config set --project task.strict_completion true
 carryctx config set --local agent.default_name claude-core
 ```
 
-默认写入项目配置。
-
-必须显式指定：
+写操作必须且只能显式指定一个作用域：
 
 ```text
 --global
@@ -934,4 +932,3 @@ CarryCtx 的存储原则是：
 ```
 
 `.carryctx/` 是项目的声明式配置和扩展目录，不是运行时数据库目录。
-

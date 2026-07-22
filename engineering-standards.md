@@ -726,7 +726,7 @@ act pull_request
 
 ```json
 {
-  "name": "carryctx",
+  "name": "@xuepoo/carryctx",
   "version": "0.1.0",
   "description": "Persistent project context for coding agents",
   "type": "module",

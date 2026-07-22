@@ -214,14 +214,16 @@ carryctx context
 
 1. 当前任务
 2. 最新 Checkpoint
-3. 剩余工作
+3. 当前 Git 状态
 4. Blocker
-5. 直接依赖
-6. 被当前任务阻塞的任务
-7. 路径可能重叠的活跃任务
-8. 相关技术决策
-9. 当前 Git 状态
-10. 最近相关事件
+5. 剩余工作
+6. 未完成强依赖及其最近状态变化
+7. 被当前任务阻塞的任务
+8. 路径可能重叠的活跃任务
+9. 与当前任务、路径或模块关联的 Decision
+10. 当前 Agent 的其他活跃任务
+11. 最近任务 Event
+12. 最近项目 Decision 和 Event
 
 ---
 
@@ -785,8 +787,9 @@ carryctx init
 
 ```text
 .carryctx/
-├── config.json
-├── skill/
+├── config.toml
+├── config.local.toml
+├── skills/
 └── templates/
 ```
 
@@ -812,7 +815,7 @@ CLI 应提示项目已经初始化，并提供：
 
 ```bash
 carryctx doctor
-carryctx migrate
+carryctx project migrate
 ```
 
 ---
@@ -1492,14 +1495,16 @@ carryctx context --format json
 
 1. 当前 Task
 2. 最新 Checkpoint
-3. Remaining Work
+3. 当前 Git 状态
 4. Blocker
-5. 直接依赖
-6. 直接被依赖任务
-7. 路径重叠任务
-8. 相关 Decision
-9. 最近相关 Event
-10. 全局项目摘要
+5. Remaining Work
+6. 未完成强依赖及其最近状态变化
+7. 直接被依赖任务
+8. 路径重叠任务
+9. 与当前 Task、路径或模块关联的 Decision
+10. 当前 Agent 的其他活跃任务
+11. 最近 Task Event
+12. 最近项目 Decision 和 Event
 
 ---
 
@@ -1994,26 +1999,24 @@ carryctx
 适合提交到 Git 的配置保存在：
 
 ```text
-.carryctx/config.json
+.carryctx/config.toml
 ```
 
 例如：
 
-```json
-{
-  "schemaVersion": 1,
-  "project": {
-    "name": "VectoJS",
-    "taskPrefix": "VCT"
-  },
-  "git": {
-    "mainBranch": "main",
-    "worktreeDirectory": "../.worktrees"
-  },
-  "session": {
-    "staleAfterMinutes": 120
-  }
-}
+```toml
+schema_version = 1
+
+[project]
+name = "VectoJS"
+task_prefix = "VCT"
+
+[git]
+main_branch = "main"
+worktree_root = "../.worktrees"
+
+[session]
+stale_after = "2h"
 ```
 
 ---
@@ -2128,16 +2131,18 @@ CarryCtx 生成上下文时，应使用确定性规则计算相关信息。
 
 1. 当前 Task
 2. 当前 Task 最新 Checkpoint
-3. 当前 Task 未完成事项
+3. 当前 Git 状态
 4. 当前 Task Blocker
-5. 当前 Task 直接依赖
-6. 直接依赖最近状态变化
+5. 当前 Task 未完成事项
+6. 未完成强依赖及其最近状态变化
 7. 被当前 Task 阻塞的任务
 8. Path Scope 重叠任务
-9. 当前 Agent 的其他活跃任务
-10. 与相关路径绑定的 Decision
-11. 最近项目级 Decision
-12. 最近项目事件
+9. 与当前 Task、路径或模块绑定的 Decision
+10. 当前 Agent 的其他活跃任务
+11. 最近 Task Event
+12. 最近项目级 Decision 和 Event
+
+同一相关性组内按 `updated_at` 降序、稳定 ID 升序排序。
 
 默认不包含：
 
@@ -2506,7 +2511,7 @@ carryctx/
 
 ```json
 {
-  "name": "carryctx",
+  "name": "@xuepoo/carryctx",
   "type": "module",
   "bin": {
     "carryctx": "./dist/cli.js"
@@ -2592,21 +2597,22 @@ CarryCtx v0.1 必须完成以下闭环。
 15. `--json`
 16. 通用 Agent Skill
 17. Doctor 基础检查
+18. Worktree 自动创建
+19. Handoff
+20. Decision
+21. Task path scope 与潜在冲突检测
+22. Session stale 检测和恢复
+23. 数据库备份与 Schema migration
+24. Markdown context 输出
 
 ---
 
 ## P1：建议实现
 
-1. Worktree 自动创建
-2. Handoff
-3. Decision
-4. Task path scope
-5. 潜在冲突检测
-6. Session stale 检测
-7. 数据库备份
-8. Schema migration
-9. Shell completion
-10. Markdown context 输出
+1. Shell completion
+2. Project export/import
+3. Worktree remove/prune 自动化
+4. Skill update/export
 
 ---
 
@@ -2924,25 +2930,23 @@ SQLite 适合本地多 worktree，但不适合直接跨机器共享。
 
 ---
 
-# 26. 待决策事项
+# 26. v0.1 已决策事项
 
-以下事项在进入详细设计前需要进一步确定：
+详细设计已固定以下事项：
 
-1. Task ID 默认前缀是否使用 `CTX`
-2. 配置文件使用 JSON、JSONC 还是 TOML
-3. SQLite Driver 选择
-4. CLI Framework 选择
-5. 是否在 v0.1 实现自动 worktree create
-6. 是否在 v0.1 实现 Handoff
-7. 是否默认允许一个 Agent 同时拥有多个 in-progress Task
-8. Session stale 默认时间
-9. Checkpoint 是否允许编辑
-10. 是否需要将部分状态导出为可提交的 JSONL
-11. 是否需要生成自动 Markdown 状态报告
-12. Skill 的安装方式
-13. 是否在 v0.1 支持 MCP
-14. Windows 支持优先级
-15. npm Package 使用无作用域 `carryctx` 还是 scoped package
+1. Task ID 默认前缀使用 `CTX`。
+2. 配置文件统一使用 TOML。
+3. SQLite Driver 使用 `bun:sqlite`。
+4. CLI Framework 使用 Citty。
+5. v0.1 实现 worktree create、Handoff、Decision、Scope、stale Session、迁移、备份和 Markdown Context。
+6. 默认一个 Agent 同时只能拥有一个 in-progress Task，可通过项目配置调整。
+7. Session stale 默认时间为 `2h`。
+8. Checkpoint 原始记录不可编辑；修正通过追加 Correction 记录完成。
+9. v0.1 不导出可提交 JSONL，也不生成自动项目状态报告。
+10. 通用 Skill 由 CLI npm 包内置，独立 Skill 仓库后续启用。
+11. v0.1 不支持 MCP。
+12. Linux 为主要平台、macOS 为次要平台；Windows 仅保留路径抽象和测试。
+13. npm Package 使用 `@xuepoo/carryctx`，可执行命令保持 `carryctx`。
 
 ---
 
@@ -2978,4 +2982,3 @@ CarryCtx 是一个使用 TypeScript 开发并通过 npm 发布的本地 CLI。
 * 下一步应该继续做什么
 
 CarryCtx 不负责运行或编排 Agent，而是作为所有 Coding Agent 共享的项目记忆和协作状态层。
-

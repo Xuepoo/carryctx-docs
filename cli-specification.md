@@ -403,6 +403,14 @@ carryctx context --format json
 carryctx checkpoint
 ```
 
+查询与修正：
+
+```text
+carryctx checkpoint list
+carryctx checkpoint show <checkpoint-id>
+carryctx checkpoint correct <checkpoint-id>
+```
+
 选项：
 
 ```text
@@ -510,6 +518,16 @@ carryctx config set --project session.stale_after 4h
 carryctx config set --global output.color auto
 carryctx config sources
 ```
+
+`config set` 和 `config unset` 必须且只能显式指定一个写入作用域：
+
+```text
+--global
+--project
+--local
+```
+
+v0.1 不提供隐式默认写入作用域。
 
 ---
 
@@ -1011,9 +1029,11 @@ stderr → Warning、错误、诊断、Verbose Log
 JSON 模式下：
 
 ```text
-stdout → 成功 JSON
-stderr → 错误 JSON 或诊断
+成功：stdout → 单个成功 JSON；stderr → 空
+失败：stdout → 空；stderr → 单个错误 JSON
 ```
+
+JSON Warning 放在成功 Envelope 的 `warnings` 中，Verbose 诊断放在 `meta.diagnostics` 中，不额外输出非 JSON 文本。
 
 秘密、Token 和完整环境变量不得输出到日志。
 
@@ -1039,18 +1059,28 @@ stable:
   resume
   context
   checkpoint
+  project show/list/register/unregister/migrate/backup/restore
   task
   progress
   session
   agent
   config
+  event
+  doctor
 
 experimental:
   handoff
   decision
-  skill
+  task scope
+  skill install/list/path/doctor
   worktree create
+  worktree bind/list/show/status/unbind
+
+deferred:
+  project export/import
+  worktree remove/prune
+  skill update/export
+  shell completion
 ```
 
 Experimental 命令仍必须遵守 JSON Schema 和错误模型。
-
