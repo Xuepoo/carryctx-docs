@@ -7,7 +7,7 @@ These tasks focus on establishing the standard for Presets and eliminating ambig
 
 - [x] **Design `preset.schema.json`**: Create a declarative schema for Capability Packs (Profiles, Rules, Workflows, Permissions).
 - [x] **Define Instruction Precedence**: Document and enforce strict precedence (Platform Policy > User Instruction > Project Rules).
-- [ ] **Implement `carryctx preset` commands**:
+- [x] **Implement `carryctx preset` commands**:
   - `carryctx preset install <name>`
   - `carryctx preset activate <name>`
   - `carryctx preset list`
