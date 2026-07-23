@@ -12,15 +12,15 @@ These tasks focus on establishing the standard for Presets and eliminating ambig
   - `carryctx preset activate <name>`
   - `carryctx preset list`
 - [x] **Integrate Workflow State into Core**: (Skipped: Decided to keep workflow step execution delegated to the agent's prompt reading skill).
-- [ ] **Supply Chain Security**: Add permission manifests, integrity hashes (SHA-256), and `.carryctx/presets.lock`.
+- [x] **Supply Chain Security**: Add permission manifests, integrity hashes (SHA-256), and `.carryctx/presets.lock`.
 
 ## P2: Platform Capability & Plugin Ecosystem
 These tasks focus on delivering CarryCtx to various IDEs and Agent environments natively via `carryctx-plugins`.
 
-- [ ] **Architect `mcp-server-carryctx`**: Build the unified Model Context Protocol server exposing `carryctx-cli` commands as tools.
-- [ ] **Claude Code Adapter**: Create the specific `.claude-plugin/plugin.json` generator.
-- [ ] **Cursor Adapter**: Create the `.cursor-plugin/plugin.json` generator and compile our Markdown rules into Cursor `.mdc` format.
-- [ ] **OpenCode Adapter**: Build the TypeScript runtime adapter for `@opencode-ai/plugin`.
+- [x] **Architect `mcp-server-carryctx`**: Build the unified Model Context Protocol server exposing `carryctx-cli` commands as tools.
+- [x] **Claude Code Adapter**: Create the specific `.claude-plugin/plugin.json` generator.
+- [x] **Cursor Adapter**: Create the `.cursor-plugin/plugin.json` generator and compile our Markdown rules into Cursor `.mdc` format.
+- [x] **OpenCode Adapter**: Build the TypeScript runtime adapter for `@opencode-ai/plugin`.
 
 ## Phase 2: Context Graph
 Evolving from a linear state machine to a semantic graph of the project.
