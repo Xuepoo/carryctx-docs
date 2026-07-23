@@ -5,8 +5,8 @@ This document serves as the master plan for the CarryCtx ecosystem, moving from 
 ## P1: Improve Determinism & Ecosystem Foundations
 These tasks focus on establishing the standard for Presets and eliminating ambiguity in rules and workflows.
 
-- [ ] **Design `preset.schema.json`**: Create a declarative schema for Capability Packs (Profiles, Rules, Workflows, Permissions).
-- [ ] **Define Instruction Precedence**: Document and enforce strict precedence (Platform Policy > User Instruction > Project Rules).
+- [x] **Design `preset.schema.json`**: Create a declarative schema for Capability Packs (Profiles, Rules, Workflows, Permissions).
+- [x] **Define Instruction Precedence**: Document and enforce strict precedence (Platform Policy > User Instruction > Project Rules).
 - [ ] **Implement `carryctx preset` commands**:
   - `carryctx preset install <name>`
   - `carryctx preset activate <name>`
