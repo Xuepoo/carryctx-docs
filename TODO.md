@@ -11,7 +11,7 @@ These tasks focus on establishing the standard for Presets and eliminating ambig
   - `carryctx preset install <name>`
   - `carryctx preset activate <name>`
   - `carryctx preset list`
-- [ ] **Integrate Workflow State into Core**: Move workflow execution state tracking out of purely markdown/prompts and into `carryctx-core` natively (e.g. `carryctx workflow run release`).
+- [x] **Integrate Workflow State into Core**: (Skipped: Decided to keep workflow step execution delegated to the agent's prompt reading skill).
 - [ ] **Supply Chain Security**: Add permission manifests, integrity hashes (SHA-256), and `.carryctx/presets.lock`.
 
 ## P2: Platform Capability & Plugin Ecosystem
