@@ -1,0 +1,38 @@
+# CarryCtx Master TODO & Roadmap
+
+This document serves as the master plan for the CarryCtx ecosystem, moving from a simple state tracker to the universal "Git of Agent Context."
+
+## P1: Improve Determinism & Ecosystem Foundations
+These tasks focus on establishing the standard for Presets and eliminating ambiguity in rules and workflows.
+
+- [ ] **Design `preset.schema.json`**: Create a declarative schema for Capability Packs (Profiles, Rules, Workflows, Permissions).
+- [ ] **Define Instruction Precedence**: Document and enforce strict precedence (Platform Policy > User Instruction > Project Rules).
+- [ ] **Implement `carryctx preset` commands**:
+  - `carryctx preset install <name>`
+  - `carryctx preset activate <name>`
+  - `carryctx preset list`
+- [ ] **Integrate Workflow State into Core**: Move workflow execution state tracking out of purely markdown/prompts and into `carryctx-core` natively (e.g. `carryctx workflow run release`).
+- [ ] **Supply Chain Security**: Add permission manifests, integrity hashes (SHA-256), and `.carryctx/presets.lock`.
+
+## P2: Platform Capability & Plugin Ecosystem
+These tasks focus on delivering CarryCtx to various IDEs and Agent environments natively via `carryctx-plugins`.
+
+- [ ] **Architect `mcp-server-carryctx`**: Build the unified Model Context Protocol server exposing `carryctx-cli` commands as tools.
+- [ ] **Claude Code Adapter**: Create the specific `.claude-plugin/plugin.json` generator.
+- [ ] **Cursor Adapter**: Create the `.cursor-plugin/plugin.json` generator and compile our Markdown rules into Cursor `.mdc` format.
+- [ ] **OpenCode Adapter**: Build the TypeScript runtime adapter for `@opencode-ai/plugin`.
+
+## Phase 2: Context Graph
+Evolving from a linear state machine to a semantic graph of the project.
+
+- [ ] **Design Context Graph Schema**: Define nodes (file, module, decision, bug, task, agent) and edges (depends, changed, fixed, related).
+- [ ] **Graph Queries**: Allow agents to query "Why was this file changed?" or "What tasks depend on this module?".
+
+## Phase 3: Agent Team Memory
+Scaling from single-agent contexts to multi-agent swarms.
+
+- [ ] **Subagent Shared State**: Enable Planner, Developer, Reviewer, and Tester agents to seamlessly pass `carryctx` context pointers without copying massive prompts.
+
+## Phase 4: The Ultimate Vision
+- [ ] **Native Integration**: Achieve out-of-the-box standard integration in major LLM tooling.
+- [ ] **Preset Marketplace**: Launch a decentralized registry for CarryCtx Presets, heavily audited for security.
