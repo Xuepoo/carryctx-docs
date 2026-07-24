@@ -1,176 +1,150 @@
-# CarryCtx 详细使用手册 (Manual)
+# CarryCtx Official User Manual (v0.3.0)
 
-本文档是 CarryCtx CLI 的官方使用说明书，全面介绍了 CarryCtx 的核心概念、标准工作流以及所有子命令的详细用法。本文档可作为后续 `carryctx-website` 官方文档站点的内容基础。
-
----
-
-## 1. 核心概念
-
-CarryCtx 旨在为 Coding Agent（AI 编程助手）和人类开发者提供一个持久化的**本地上下文存储层**，使开发过程具备“记忆”、“可随时中断与恢复”以及“支持多 Agent 协作”的能力。
-
-核心实体包括：
-- **Project (项目)**: 对应一个 Git 仓库及其根目录。所有 CarryCtx 数据存储在 `.git/carryctx/state.sqlite` 中。
-- **Agent (代理)**: 参与项目的开发实体。可以是人类，也可以是不同供应商的 AI（如 Claude-Code, Aider）。
-- **Task (任务)**: 开发工作的基础单元（如一个需求、一个 Bug 修复）。任务可以具有依赖关系（Dependencies）。
-- **Session (会话)**: 针对某个 Task 进行的一段连续开发时间。一次工作流通常由开启会话开始，以结束会话（或提交 Checkpoint）告终。
-- **Progress (进度)**: 在会话期间记录的碎片化脑图，包括待办 (todo)、完成 (done)、阻塞 (block) 和笔记 (note)。
-- **Checkpoint (快照)**: 对当前工作进度的完整定格，包含所有未提交的文件 Diff、完成的步骤和后续计划，可方便其他 Agent（或明天的自己）一键恢复大脑上下文。
+This is the comprehensive, official documentation for CarryCtx CLI. It serves as the ultimate product user manual and is the basis for the `carryctx-website` content.
 
 ---
 
-## 2. 快速开始工作流
+## 1. What is CarryCtx?
 
-### 2.1 初始化与注册
-在任何一个新的代码仓库中，首先需要初始化 CarryCtx 数据库并注册你的 Agent 身份。
+CarryCtx is an offline-first, Git-native, context-preservation engine built for Coding Agents (like Claude Code, Cursor, Aider) and Human developers. It runs entirely on your local machine using a high-performance Rust core and an embedded SQLite database (`.git/carryctx/state.sqlite`), ensuring zero latency and 100% privacy.
 
+With CarryCtx, you can seamlessly pause your coding session, jump to another branch, hand over a task to an AI agent, and resume exactly where you left off, with full memory of your previous thoughts, code dependencies, and checkpoints.
+
+---
+
+## 2. Core Concepts
+
+* **Project**: Mapped 1:1 with your local Git repository.
+* **Agent**: The entity performing the work. Can be a human developer (`alice`) or an AI model (`claude-code`).
+* **Task**: A tracked unit of work (e.g., `CTX-0001`). Tasks support hierarchies, dependencies, and scope binding.
+* **Session**: A continuous block of active development attached to a Task.
+* **Progress (todo/done/block/note)**: Micro-journaling primitives during a Session.
+* **Checkpoint**: A persistent snapshot of your context, unfinished tasks, and Git diff, acting as a "save state" for AI memory.
+* **Git Worktrees**: Isolated workspace directories for parallel task execution without switching branches in your main directory.
+* **AST Graph**: A semantic dependency graph of your codebase parsed locally to give AI agents spatial awareness of your code.
+* **Presets**: Shareable combinations of Rules, Personas, and Workflows stored in `.carryctx/`.
+
+---
+
+## 3. Quick Start
+
+### 3.1 Initialization & Agent Registration
+Initialize CarryCtx in any Git repository:
 ```bash
-# 初始化当前目录为 CarryCtx 项目
 carryctx init
-
-# 注册一个新的 Agent（比如人类开发者或某个 AI）
-carryctx agent register --name my-agent --provider user
-# 或者注册一个 Claude Agent
-carryctx agent register --name claude-code --provider anthropic
-
-# 设置当前环境的 Agent ID (推荐配置在 bashrc 中或由 Agent 自动注入)
-export CARRYCTX_AGENT=my-agent
 ```
 
-### 2.2 创建任务与开启开发
-当有一个新需求时，先创建 Task 并认领。
-
+Register yourself or your AI agent:
 ```bash
-# 创建一个新的任务，得到显示 ID (如 CTX-0001)
-carryctx task create --title "实现用户登录功能"
+carryctx agent register --name antigravity --provider gemini --role presets/personas/architect.md
+```
+*Note: As of v0.3.0, if no agent is specified and there is only one active agent in the database, CarryCtx intelligently infers the agent context.*
 
-# 如果有前置任务，可以指定依赖
-carryctx task create --title "实现重置密码" --depends-on CTX-0001
+### 3.2 Managing Tasks
+```bash
+# Create a task
+carryctx task create --title "Implement OAuth2 login" --priority high
 
-# 认领你要处理的任务（将你设为 Owner 并标记为进行中）
+# Claim the task
 carryctx task claim CTX-0001
-
-# 开启一段开发会话 (Session)
-carryctx session start --task CTX-0001
 ```
 
-### 2.3 记录进度与打快照
-在敲击代码的过程中，随时将思路持久化：
-
+### 3.3 Seamless Sessions & Smart Inference (v0.3.0 Feature)
+Start working on your task. CarryCtx intelligently infers your task context if you are inside a Git Worktree or have a single active task:
 ```bash
-# 记录思维碎片
-carryctx progress todo "需要添加密码的 bcrypt hash 处理"
-carryctx progress done "已经建好 users 数据库表"
-carryctx progress block "等待前端提供具体参数格式"
+carryctx session start
+
+# Record your thoughts as you code
+carryctx progress todo "Add JWT token validation"
+carryctx progress done "Created OAuth2 endpoints"
+carryctx progress block "Waiting for Google Client ID from DevOps"
 ```
 
-当你要下班、被其他事情打断、或者需要清除过长上下文时，保存快照：
-
+### 3.4 Checkpoints & Context Export
+When you finish your shift, save your context:
 ```bash
-# 生成包含未提交代码 Diff、进度汇总的上下文快照
-carryctx checkpoint \
-  --done "完成了基础表结构和登录接口" \
-  --remaining "还要做密码加密和 Token 签发" \
-  --blocker "无"
-  
-# 结束本次会话
+carryctx checkpoint --done "Finished OAuth2 endpoints" --remaining "JWT token validation"
 carryctx session end
 ```
 
-### 2.4 上下文恢复
-当你明天重新打开终端，或者换了一个 Agent 接手：
-
+To fetch the full context (designed for feeding into LLM prompts):
 ```bash
-# 一键查看当前的全面状态（包含上个快照的记录、未完成的进度等）
-carryctx status
-
-# 恢复上下文（将最近的 Checkpoint、未完成进展输出给大模型读取）
-carryctx resume
+carryctx context
 ```
 
 ---
 
-## 3. CLI 子命令详尽参考
+## 4. Comprehensive Command Reference
 
-所有命令支持 `--json` 输出机器可读格式，以及 `--non-interactive` 静默模式。
+CarryCtx supports `--json` for machine-readable output and `--quiet` / `--verbose` for logging control across all commands.
 
-### 3.1 核心状态流转 (`init`, `status`, `resume`, `checkpoint`)
-- **`carryctx init`**
-  - **功能**: 初始化 CarryCtx。在 `.git/carryctx/` 下创建 SQLite 数据库。
-  - **用法**: `carryctx init`
+### 4.1 Global Options
+- `--agent <AGENT_ID>`: Explicitly define the operating agent, overriding environmental variables and auto-resolution.
+- `--json`: Format output as a JSON envelope.
+- `--format <text|markdown|json>`: Define the output format.
 
-- **`carryctx status`**
-  - **功能**: 输出当前项目维度的健康状态，包括活跃 Session、进行中的任务、挂起的阻塞点等。
-  - **用法**: `carryctx status`
+### 4.2 Project & Lifecycle Commands
+- `carryctx init`: Initializes the `.git/carryctx/state.sqlite` database.
+- `carryctx status`: Displays a health dashboard (active sessions, current tasks, agents, and worktrees).
+- `carryctx project prune [--older-than <days>]`: Prunes old database backups to free up disk space.
+- `carryctx project backup / restore`: Manages manual SQLite backups.
+- `carryctx doctor`: Runs integrity checks on the database, Git hooks, and worktree bindings.
 
-- **`carryctx resume`**
-  - **功能**: 输出上文恢复指南。读取最近一次 Checkpoint 以及 Progress，为 AI 提供续写上下文。
-  - **用法**: `carryctx resume [--task <task-id>]`
+### 4.3 Task Commands
+- `carryctx task create --title <TITLE> [--depends-on <ID>]`: Creates a task.
+- `carryctx task claim <TASK_ID>`: Assigns the task to the current agent and transitions it to `in_progress`.
+- `carryctx task list [--status <STATUS>] [--mine]`: Lists tasks.
+- `carryctx task start / pause / complete / cancel / review / block`: Transitions the task state.
+- `carryctx task deps add / remove / tree`: Manages task dependencies.
 
-- **`carryctx checkpoint`**
-  - **功能**: 创建进度快照。它会自动抓取 Git 状态（staged、modified、untracked）与你的输入结合。
-  - **用法**: `carryctx checkpoint --done "..." --remaining "..." [--blocker "..."] [--note "..."]`
+### 4.4 Session & Progress Commands
+- `carryctx session start [--task <TASK_ID>]`: Starts a session. Smart inference automatically attaches the task if omitted.
+- `carryctx session pause / resume / end`: Manages session lifecycles.
+- `carryctx progress todo <TEXT>`: Adds a pending item to the current session.
+- `carryctx progress done <TEXT>`: Marks an item as completed.
+- `carryctx progress block <TEXT>`: Logs an active blocker.
+- `carryctx progress note <TEXT>`: Logs architectural thoughts or debugging notes.
 
-- **`carryctx context`** *(为大模型专门设计)*
-  - **功能**: 将当前任务相关的完整上下文结构化导出，便于拼接到 Prompt 中。
-  - **用法**: `carryctx context [--task <task-id>]`
+### 4.5 Agent Commands
+- `carryctx agent register --name <NAME>`: Registers a new agent.
+- `carryctx agent current`: Displays the auto-resolved active agent.
+- `carryctx agent list / show / deactivate`: Manages agent lifecycles.
 
-### 3.2 任务管理 (`task`)
-管理需求、Bug 与开发任务，支持依赖图。
-- **`task create`**: 创建新任务。`--title <标题> [--description <描述>] [--depends-on <task-id>]`
-- **`task list`**: 列出任务。`[--status <状态>] [--assignee <agent-id>]`
-- **`task claim`**: 认领任务并更新状态为 `in_progress`。
-- **`task start`**: 开始任务（不更改所有者）。
-- **`task review`**: 提交任务审查。
-- **`task block`**: 将任务挂起/阻塞。
-- **`task complete`**: 完成任务。
-- **`task cancel`**: 取消任务。
-- **`task deps`**: 管理依赖（`add`, `remove`, `tree` 查看依赖树）。
-- **`task scope`**: 限定当前任务影响的文件范围。
+### 4.6 Checkpoint & Context Commands
+- `carryctx checkpoint --done <TEXT> --remaining <TEXT> [--blocker <TEXT>]`: Snapshots the task state, active progress, and current Git diff.
+- `carryctx context [--task <TASK_ID>]`: Compiles a detailed markdown context (perfect for pasting into LLM chats) containing dependencies, session history, and recent progress.
+- `carryctx resume`: Similar to `context`, but tailored specifically for resuming work after an interruption.
 
-### 3.3 会话与进度追踪 (`session`, `progress`)
-- **`session start`**: 开始一段编码时间。`[--task <task-id>]`
-- **`session pause`**: 暂停会话（如去吃午饭）。
-- **`session end`**: 结束会话。通常配合 `checkpoint` 使用。
-- **`session list`**: 查看近期会话历史。
+### 4.7 Git Worktree Commands
+Isolated workspaces are first-class citizens in CarryCtx.
+- `carryctx worktree create <BRANCH> [--task <TASK_ID>]`: Creates a Git worktree linked to a specific task. Running `carryctx` inside this worktree automatically infers the bounded task.
+- `carryctx worktree list`: Lists active worktrees and their bounded tasks.
+- `carryctx worktree remove <BRANCH>`: Safely cleans up the worktree.
 
-- **`progress todo`**: 记录下一步要做的待办事项。`"内容" [--task <id>]`
-- **`progress done`**: 记录刚完成的小步骤。
-- **`progress block`**: 记录当前的阻碍。
-- **`progress note`**: 记录参考笔记或发现。
+### 4.8 AST Code Graph Commands
+CarryCtx can locally parse your codebase into an Abstract Syntax Tree (AST) to understand imports, exports, and function calls.
+- `carryctx graph scan`: Scans the current Git repository and updates the AST database.
+- `carryctx graph query --pattern <GLOB>`: Queries the graph for specific symbols or files.
+- `carryctx graph explain <FILE_OR_SYMBOL> [--depth <N>]`: Generates a semantic explanation of how a file or function fits into the codebase.
+- `carryctx graph export [--format <mermaid|dot|json>]`: Exports the codebase dependency graph for visualization.
 
-### 3.4 多代理协作与高级功能 (`agent`, `worktree`, `handoff`, `decision`)
-- **`agent`**
-  - `agent register --name <名称> --provider <引擎>`: 注册代理。
-  - `agent list`: 查看项目中的所有协作者。
-  - `agent update`: 更新代理状态（如停用）。
+### 4.9 Presets & Rules (The \`.carryctx/\` Ecosystem)
+Share best practices, personas, and workflows across your team.
+- `carryctx preset list`: Lists available presets in `.carryctx/`.
+- `carryctx preset show <NAME>`: Previews a preset.
+- `carryctx preset apply <NAME>`: Activates a workflow or rule preset.
 
-- **`worktree`** (基于 Git Worktree 的任务并行开发)
-  - `worktree create <分支名> [--task <task-id>]`: 为特定任务快速创建一个独立的代码工作区。
-  - `worktree list`: 查看绑定的工作区。
-  - `worktree remove <id>`: 清理工作区。
+### 4.10 Analytics
+- `carryctx stats [--format markdown|json|csv] [--output <FILE>]`: Computes rich project analytics, including Total Agent Hours, Task Completion Rates, and Codebase Graph Complexity.
 
-- **`handoff`** (接力与交接班)
-  - `handoff create --target <agent-id> --message "..."`: 向特定 Agent 发送交接班请求。
-  - `handoff read/claim`: 读取或认领交接请求。
-
-- **`decision`** (架构级决策记录 / ADR)
-  - `decision record --title "..." --content "..."`: 记录项目为什么做出某种技术选择。
-
-### 3.5 诊断与系统 (`doctor`, `config`, `event`, `project`)
-- **`doctor`**: 诊断 CarryCtx 数据库的完整性和一致性。
-- **`config`**: 读取/修改配置（如修改前缀规则、提交格式）。`config get <key>`, `config set <key> <value>`。
-- **`event list`**: 基于 Event Sourcing 模型，列出项目中发生的所有底层事件追踪。
-- **`project show/migrate`**: 显示当前项目元数据或运行数据库迁移。
+### 4.11 MCP Integration
+- `carryctx mcp`: Launches the Model Context Protocol (MCP) `stdio` server. This allows compatible clients (like Claude Desktop or Cursor) to seamlessly discover and execute CarryCtx tools natively via JSON-RPC.
 
 ---
 
-## 4. 给 Agent 编写者的建议 (Agent Guidelines)
+## 5. Best Practices for Coding Agents
 
-如果你在开发一个新的 CLI Agent 并希望深度集成 CarryCtx：
-
-1. **统一身份**: 在 Agent 启动时，主动探测环境变量 `CARRYCTX_AGENT`，若不存在，则可利用 `carryctx agent register` 进行自我注册并持久化该 ULID。
-2. **善用 JSON**: 所有命令调用附带 `--json`，并通过 exit code 判断操作是否被业务逻辑拒绝（如 `exit code 3` 为 State Conflict）。
-3. **安全边界**: CarryCtx 提供的是本地控制面缓存，请避免在 `carryctx progress note` 等命令中写入海量数据（如超大的 Log），它适用于人类可读的高密度总结。
-4. **中断友好**: 任何时刻如果大模型生成超时或需要强制退出，务必拦截 SIGINT 信号并调用 `carryctx checkpoint` 以保存遗留现场。
-
-> 提示：本手册的所有命令都可以通过附加 `--help` 参数查看更详细的标志位说明，例如 `carryctx task create --help`。
+1. **Auto-Resolution**: Take advantage of v0.3.0's auto-resolution. If you create a worktree for a task, simply `cd` into it; you no longer need to pass `--task` or `--agent` to subsequent commands.
+2. **Commit Hooks**: Run `carryctx hooks install` to automatically trigger checkpoints upon Git commits.
+3. **Atomic Operations**: Rely on the JSON envelope (`--json`). CarryCtx guarantees SQLite ACID transactions. If a command exits with code `0`, it succeeded; otherwise, read the `error` object.
+4. **Rich Personas**: When initializing an agent, assign a Persona preset (e.g., `presets/personas/architect.md`) so the AI naturally adopts the defined rigor.
