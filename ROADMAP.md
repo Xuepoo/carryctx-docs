@@ -24,11 +24,12 @@ The v0.1 completion gate is AC-001 through AC-012 in `requirements.md`, plus the
 
 ## Later releases
 
-- MCP adapter
+- ~~MCP adapter~~ — shipped as `carryctx mcp`, a subcommand of `carryctx-cli` (not a separate adapter package). See `carryctx-cli/src/application/mcp.rs`.
 - Explicit remote synchronization adapters
 - Multi-repository projects
 - GitHub Issue and Pull Request synchronization
 - Website and optional local dashboard
 - Code impact and richer indexing adapters
+- Jujutsu (jj) colocated-repository compatibility — see `plans/2026-07-25-jujutsu-compatibility.md` for the phased plan and what was verified against a real jj installation.
 
 These later items must remain optional and must not compromise the local-first, offline CLI.
