@@ -1,6 +1,6 @@
 # Jujutsu (jj) Compatibility Roadmap
 
-**Status:** Proposed, not started
+**Status:** Phases 1-4 shipped (this repo, `[Unreleased]` in `carryctx-cli/CHANGELOG.md`). Phase 3 landed as a detect-and-refuse guard rather than a `jj workspace add` integration — see the Phase 3 write-up below for why.
 
 **Date:** 2026-07-25
 
@@ -58,7 +58,7 @@ Detection is cheap and already directly testable: `<git_common_dir>/../.jj` (i.e
 - Fix `head: ""` → `head: None` for the zero-commit case (§2.2). Pure bug fix, benefits every backend.
 - Add a `carryctx doctor` check: "jj colocation detected" (informational, not a warning) whenever `.jj/` is found alongside `.git/`, so users get an explicit signal that CarryCtx knows about jj rather than silently doing something backend-specific. This is the seed of the detection logic Phase 2+ will reuse.
 
-**Acceptance:** `cargo test` unaffected; new doctor check has a unit test using a temp dir with a fake `.jj/` marker (no real jj binary needed to test detection logic).
+**Acceptance:** `cargo test` unaffected; new doctor check has a unit test using a temp dir with a fake `.jj/` marker (no real jj binary needed to test detection logic). **Done** — `GitCli::detect_jj_colocation` + 3 unit tests in `carryctx-cli/src/adapter/git.rs`; `doctor`'s `vcs.jj_colocation` check wired in `carryctx-cli/src/commands/doctor.rs`; additionally smoke-tested against a real jj 0.43.0 colocated repo (`jj git init --colocate`), confirming both the doctor check fires and `checkpoint`'s `head` field is `null` (not `""`) on a zero-commit repo.
 
 ### Phase 2 — Checkpoint data-quality: stop asserting staged/unstaged when it's not meaningful
 
@@ -67,15 +67,22 @@ Given §2.3's finding that jj makes the staged/unstaged split unreliable, the ri
 - When jj colocation is detected, still report `dirty` and diff stats (both remain accurate), but collapse `staged_files`/`modified_files`/`untracked_files` into a single accurate list of "changed files" rather than presenting a three-way split that doesn't hold. Add a field (e.g. `vcs_backend: "git" | "jj"`) to the checkpoint/snapshot payload so downstream consumers (the CLI reference docs, any Agent Skill reading this JSON) know why the shape differs.
 - Document the field's meaning change in the CLI reference (`carryctx-website`) checkpoints page, gated on `vcs_backend`.
 
-**Acceptance:** a test fixture using a real jj colocated temp repo (CI needs jj installed for this one test binary, or it's marked `#[ignore]` and run manually / in a dedicated job — decide during implementation) confirms `dirty` and diff stats stay correct and `vcs_backend` is set.
+**Acceptance:** a test fixture using a real jj colocated temp repo (CI needs jj installed for this one test binary, or it's marked `#[ignore]` and run manually / in a dedicated job — decide during implementation) confirms `dirty` and diff stats stay correct and `vcs_backend` is set. **Done** — `GitSnapshot`/`Checkpoint` gained `vcs_backend: "git" | "jj"` and `changed_files` (accurate merge of staged+modified+untracked); under jj colocation the three-way split is cleared, `changed_files` and `dirty` stay accurate. Migration `0008_jj_compat.sql` adds the two new checkpoint columns. `#[ignore]`-gated integration test `carryctx-cli/tests/checkpoint_test.rs::test_checkpoint_jj_colocation_reports_backend_and_changed_files` (run manually with `cargo test --test checkpoint_test -- --ignored`); verified against real jj 0.43.0.
 
-### Phase 3 — Worktree creation: branch on backend, use jj's real primitive
+### Phase 3 — Worktree creation: revised after further verification
 
-- `GitCli` (or a new thin `VcsBackend` trait it implements one side of) gains a jj-colocated branch for worktree creation: when `.jj/` is present, `carryctx worktree create` shells out to `jj workspace add <path>` instead of `git worktree add`, and worktree removal/listing use `jj workspace forget` / `jj workspace list` accordingly.
-- This does require jj to be on `PATH` when colocation is detected — that's fine, if `.jj/` exists the user has jj installed by definition. Absent colocation, `carryctx` never invokes `jj` at all.
-- `carryctx worktree list`/`status` need matching branches to read from the right source (`git worktree list --porcelain` vs `jj workspace list`).
+The original plan for this phase (branch `carryctx worktree create` on backend, calling `jj workspace add <path>` instead of `git worktree add`) turned out to have a premise that doesn't hold. Further verification with real jj 0.43.0:
 
-**Acceptance:** an integration test creates a real jj colocated repo, runs `carryctx worktree create`, and verifies via `jj workspace list` that jj itself recognizes the new workspace (closing the exact gap found in §2.4) — not just that a directory exists.
+- `jj workspace add <path>` creates a workspace with **only a `.jj/` directory — no `.git/` at all**, even though the *primary* workspace is colocated. jj's colocation is a property of the primary checkout; secondary workspaces created via `jj workspace add` are jj-native only. Confirmed: `git rev-parse --show-toplevel` inside a directory created this way fails with "not a git repository", while `jj status` works fine there.
+- This means switching `carryctx worktree create` to call `jj workspace add` would close the discovery gap (§2.4 — jj not recognizing the directory) but immediately reopen a different, worse one: every other `carryctx` command (`status`, `checkpoint`, `context`, etc.) that reads state via `GitCli::discover`/`get_snapshot` would fail entirely inside that same directory, since there is no `.git/` to find. That is not a partial fix, it is trading one broken command for a fleet of newly-broken ones.
+- Building a genuinely working fix would require a second, jj-CLI-based state reader (parsing `jj status`/`jj log` instead of shelling out to `git`) for any directory with `.jj/` but no local `.git/`. That is exactly the "jj-native, no `.git/`" support this plan's own §5 (non-goals) puts out of scope — the boundary doesn't move just because the no-`.git/` directory happens to be a *secondary* workspace of an otherwise-colocated repo.
+
+Given that, this phase shipped the boundary the original plan intended (§2.4's exact hazard: a `carryctx`-created directory that `jj` and jj-users can't safely operate in) using the "detect, don't assume" principle from §3, but as a **refusal** rather than a **translation**:
+
+- `carryctx worktree create` now detects jj colocation (via the same `detect_jj_colocation` helper from Phase 1) and returns `VALIDATION_FAILED` with a message pointing at `jj workspace add <path>` directly, plus `carryctx worktree bind` from inside the *primary* colocated checkout if the new workspace needs to be tracked by CarryCtx. It never creates a broken directory.
+- `worktree list`/`bind`/`show`/`status`/`unbind` are unchanged — they already operate on the primary colocated checkout, which has a real `.git/` and works today (§2.1).
+
+**Acceptance:** an integration test creates a real jj colocated repo, runs `carryctx worktree create`, and verifies it refuses with a clear jj-specific error instead of creating a directory neither `jj` nor `carryctx` can safely use (closing the exact gap found in §2.4, by refusal rather than by a working `jj workspace add` translation). **Done** — guard added in `carryctx-cli/src/application/worktree.rs::create_worktree`; `#[ignore]`-gated integration test `carryctx-cli/tests/worktree_test.rs::test_worktree_create_refuses_under_jj_colocation` plus a plain-git regression test in the same file; verified against real jj 0.43.0 (confirmed `jj workspace add` produces a `.git/`-less directory, confirmed the refusal fires and no directory is created, confirmed plain Git worktree create is unaffected).
 
 ### Phase 4 — Hooks: replace the git-hook assumption, don't try to patch it
 
@@ -86,7 +93,7 @@ git-hook-based auto-checkpointing cannot be made to work under jj (§2.5 — the
 
 Recommendation: ship the honest error/warning from option 2 in this phase regardless of whether option 1 is pursued, since it's a one-line detection + message and immediately stops the current silent-failure behavior. Option 1 is a larger, separate feature and should get its own plan if pursued.
 
-**Acceptance:** `carryctx hooks install` under a detected jj-colocated repo either refuses with a clear message, or (if option 1 lands first) installs the watch-based alternative; either way, it never silently installs hooks that cannot fire.
+**Acceptance:** `carryctx hooks install` under a detected jj-colocated repo either refuses with a clear message, or (if option 1 lands first) installs the watch-based alternative; either way, it never silently installs hooks that cannot fire. **Done** — shipped option 2: `carryctx hooks install` detects jj colocation (reusing `detect_jj_colocation`) and refuses with `VALIDATION_FAILED` and a message explaining `jj git export` bypasses Git's hook mechanism, pointing at manual `carryctx checkpoint` as the interim workflow. Option 1 (watch mode) not pursued — remains a candidate for its own future plan if manual checkpointing proves insufficient. `#[ignore]`-gated integration test `carryctx-cli/tests/hooks_test.rs::test_hooks_install_refuses_under_jj_colocation` plus a plain-git regression test; verified against real jj 0.43.0 (confirmed refusal fires, confirmed no hook files are written, confirmed plain Git hooks install is unaffected).
 
 ## 5. Explicit non-goals
 

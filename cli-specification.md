@@ -451,6 +451,10 @@ carryctx checkpoint \
 * Modified Files
 * Untracked Files
 * Diff Stats
+* VCS Backend（`vcs_backend`: `"git"` 或 `"jj"`）
+* Changed Files（`changed_files`：跨两种后端都准确的合并文件列表）
+
+当检测到 [Jujutsu (jj) colocated 仓库](../plans/2026-07-25-jujutsu-compatibility.md)（`.git/` 旁存在 `.jj/`）时，`vcs_backend` 为 `"jj"`，且 `staged_files`/`modified_files`/`untracked_files` 始终为空数组 —— jj 的自动工作副本快照机制会让这个三分法失去意义（只读命令也会写入 Git index）。此时应使用 `changed_files`，它在两种后端下都是准确的“变更文件”合并列表。`dirty` 与 Diff Stats 在两种后端下都保持准确。
 
 Checkpoint 创建后不可直接修改。
 
@@ -792,7 +796,7 @@ carryctx worktree create CTX-0001
 --checkout
 ```
 
-CarryCtx 使用系统 Git CLI 执行 worktree 操作。
+CarryCtx 使用系统 Git CLI 执行 worktree 操作。当检测到 [Jujutsu (jj) colocated 仓库](../plans/2026-07-25-jujutsu-compatibility.md)（`.git/` 旁存在 `.jj/`）时，`worktree create` 拒绝执行并返回 `VALIDATION_FAILED`：jj 的二级工作区（`jj workspace add`）没有独立的 `.git/` 目录，`carryctx` 的状态命令无法在其内部读取仓库状态；而 `git worktree add` 创建的目录 jj 也无法识别为工作区。用户应直接运行 `jj workspace add <path>`，进入该目录后仅使用 `jj` 命令；如需将其纳入 CarryCtx 状态追踪，应在主 colocated 仓库内运行 `carryctx worktree bind`。
 
 删除前必须检查：
 
