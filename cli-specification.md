@@ -234,6 +234,7 @@ carryctx worktree
 carryctx decision
 carryctx handoff
 carryctx event
+carryctx search
 carryctx skill
 ```
 
@@ -451,6 +452,10 @@ carryctx checkpoint \
 * Modified Files
 * Untracked Files
 * Diff Stats
+* VCS Backend（`vcs_backend`: `"git"` 或 `"jj"`）
+* Changed Files（`changed_files`：跨两种后端都准确的合并文件列表）
+
+当检测到 [Jujutsu (jj) colocated 仓库](../plans/2026-07-25-jujutsu-compatibility.md)（`.git/` 旁存在 `.jj/`）时，`vcs_backend` 为 `"jj"`，且 `staged_files`/`modified_files`/`untracked_files` 始终为空数组 —— jj 的自动工作副本快照机制会让这个三分法失去意义（只读命令也会写入 Git index）。此时应使用 `changed_files`，它在两种后端下都是准确的“变更文件”合并列表。`dirty` 与 Diff Stats 在两种后端下都保持准确。
 
 Checkpoint 创建后不可直接修改。
 
@@ -792,7 +797,7 @@ carryctx worktree create CTX-0001
 --checkout
 ```
 
-CarryCtx 使用系统 Git CLI 执行 worktree 操作。
+CarryCtx 使用系统 Git CLI 执行 worktree 操作。当检测到 [Jujutsu (jj) colocated 仓库](../plans/2026-07-25-jujutsu-compatibility.md)（`.git/` 旁存在 `.jj/`）时，`worktree create` 拒绝执行并返回 `VALIDATION_FAILED`：jj 的二级工作区（`jj workspace add`）没有独立的 `.git/` 目录，`carryctx` 的状态命令无法在其内部读取仓库状态；而 `git worktree add` 创建的目录 jj 也无法识别为工作区。用户应直接运行 `jj workspace add <path>`，进入该目录后仅使用 `jj` 命令；如需将其纳入 CarryCtx 状态追踪，应在主 colocated 仓库内运行 `carryctx worktree bind`。
 
 删除前必须检查：
 
@@ -894,7 +899,50 @@ Event 不提供普通删除命令。
 
 ---
 
-# 22. `carryctx doctor`
+# 22. `carryctx search`
+
+跨 Task、Progress、Checkpoint、Decision 的全文搜索。基于 SQLite FTS5，按 `bm25()` 相关度排序。
+
+```bash
+carryctx search "markdown worker protocol"
+```
+
+参数：
+
+```text
+<query>       (位置参数，必填)
+--type        task | progress | checkpoint | decision
+--status      按拥有该记录的 Task 的状态过滤
+--owner       按拥有该记录的 Task 的 owner agent 过滤（名称或 ULID）
+--limit       最大返回条数，默认 20
+```
+
+`--owner` 命名上有意区别于全局 `--agent`/`CARRYCTX_AGENT`：两者同名会导致 clap 把全局身份参数的值泄漏进子命令的局部参数，`event list --agent` 曾经踩过这个坑（见 CHANGELOG 0.2.1），`search` 直接用不同名字规避。
+
+每条结果（`SearchHit`）：
+
+```json
+{
+  "kind": "checkpoint",
+  "id": "01J...",
+  "displayId": null,
+  "taskId": "01J...",
+  "taskDisplayId": "CTX-0001",
+  "taskStatus": "in_progress",
+  "branch": "feature/markdown-worker",
+  "snippet": "PR #263 merged - [markdown] worker-owned source",
+  "score": -3.2,
+  "createdAt": "2026-07-28T19:00:00Z"
+}
+```
+
+`branch` 解析顺序：Checkpoint 命中优先使用该 Checkpoint 自身记录的 `branch`（创建时的真实分支），否则回退到该 Task 当前的 worktree 绑定分支；其余三种命中类型直接使用 worktree 绑定分支。两者都缺失时为 `null`。
+
+索引维护：`tasks`、`progress_items`、`checkpoints`、`decisions` 各有一张 FTS5 虚表，通过触发器随对应主表的增删改同步；升级到包含此功能的版本时，迁移会对已有数据一次性回填索引。
+
+---
+
+# 23. `carryctx doctor`
 
 ```bash
 carryctx doctor
@@ -935,7 +983,7 @@ skill
 
 ---
 
-# 23. `carryctx skill`
+# 24. `carryctx skill`
 
 ```text
 carryctx skill install
@@ -966,7 +1014,7 @@ carryctx skill install --project
 
 ---
 
-# 24. JSON 输出规范
+# 25. JSON 输出规范
 
 成功：
 
@@ -1009,7 +1057,7 @@ carryctx skill install --project
 
 ---
 
-# 25. Exit Code
+# 26. Exit Code
 
 ```text
 0   Success
@@ -1033,7 +1081,7 @@ Exit Code 必须视为公共 API。
 
 ---
 
-# 26. 输出流
+# 27. 输出流
 
 ```text
 stdout → 正常结果
@@ -1053,7 +1101,7 @@ JSON Warning 放在成功 Envelope 的 `warnings` 中，Verbose 诊断放在 `me
 
 ---
 
-# 27. 命令稳定性等级
+# 28. 命令稳定性等级
 
 命令在文档中标记：
 
