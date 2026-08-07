@@ -1634,6 +1634,7 @@ Decision 至少包含：
 * Context
 * Decision
 * Consequences
+* Rationale
 * Related Tasks
 * Related Paths
 * Created By
