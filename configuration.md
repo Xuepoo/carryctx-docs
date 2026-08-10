@@ -316,6 +316,11 @@ capture_untracked_files = true
 [output]
 color = "auto"
 unicode = true
+# 文本输出完整记录（等价于全局 --verbose），默认 false（compact 单行摘要）
+verbose = false
+# 按命令裁剪输出字段（同时作用于 text 与 JSON 的 data）
+[output.fields]
+"handoff.list" = ["display_id", "status", "summary"]
 ```
 
 ---

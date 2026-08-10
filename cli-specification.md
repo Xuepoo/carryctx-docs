@@ -1057,6 +1057,54 @@ carryctx skill install --project
 
 ---
 
+# 25.1 文本输出（compact）
+
+`--format text`（默认）为 Agent 上下文做精简：实体类命令只输出单行摘要，
+不输出完整记录（ULID、时间戳、空字段等一律省略）。
+
+```text
+$ carryctx task create --title "fix: selection drift"
+Task created: CTX-0321
+
+$ carryctx agent current --agent opencode
+opencode
+
+$ carryctx handoff list
+HO-0003    open         → 01KY7HA5  Bug B: per-character positioned carriers ...
+```
+
+已覆盖的命令族：`task.*`、`agent.*`、`checkpoint.*`、`handoff.*`、`session.*`、
+`progress.*`、`decision.*`、`worktree.*`、`event.*`、`search`、`status`。
+未覆盖的命令保持原有 pretty JSON 文本输出。
+
+## 25.2 完整文本输出
+
+需要完整字段时使用以下任一方式（JSON 输出不受影响，始终为完整 Envelope）：
+
+* 全局 `--verbose` 标志：`carryctx task show CTX-0321 --verbose`
+* 配置文件：`.carryctx/config.toml` 中设置 `[output] verbose = true`
+
+## 25.3 字段投影
+
+可用 `--fields`（全局参数）或配置文件按命令过滤输出字段，只保留需要的高关注字段：
+
+```bash
+carryctx handoff list --json --fields display_id,status,summary,target_agent_id
+```
+
+```toml
+# .carryctx/config.toml
+[output.fields]
+"handoff.list" = ["display_id", "status", "summary", "target_agent_id"]
+"task.list"    = ["display_id", "title", "status"]
+```
+
+CLI `--fields` 优先级高于配置文件。投影同时作用于 text 与 JSON 输出；
+JSON Envelope 结构（`schema_version`/`command`/`success`/`data`/`meta`）保持不变，
+仅 `data` 内的记录字段被裁剪。
+
+---
+
 # 26. Exit Code
 
 ```text
