@@ -738,6 +738,26 @@ carryctx task scope conflicts CTX-0001
 
 v0.1 Scope 为软约束。
 
+## 16.6 编辑任务
+
+```bash
+carryctx task edit CTX-0001 --title "New title"
+carryctx task edit CTX-0001 --priority high
+carryctx task edit CTX-0001 --description "Revised requirements"
+```
+
+`task edit` 只修改传入的参数，支持：
+
+```text
+--title <text>
+--priority <low|normal|high|urgent>
+--description <text>    # 0.5.4 起
+```
+
+owner 与 status 不使用 edit 修改，分别走 claim/release/start 等转换命令。
+编辑必须在一个 SQLite Transaction 中完成，并追加 `task.edited` 审计事件
+（payload 携带 before/after 的 title、priority、description）。
+
 ---
 
 # 17. `carryctx progress`
