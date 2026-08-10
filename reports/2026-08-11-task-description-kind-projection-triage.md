@@ -106,3 +106,10 @@ Release (6 binaries + deb/rpm/apk/pkg.tar.zst), Homebrew, Scoop.
 Publish AUR job failed twice because `aur.archlinux.org` was down for
 maintenance ("The AUR is down due to maintenance. We will be back soon.");
 retry once the outage clears.
+
+> **AUR publish is knowingly skipped (2026-08-11 onward)**: AUR upstream has
+> been under a supply-chain poisoning attack and has accepted no uploads
+> since 2026-08-01. The `Publish AUR` job will fail with an SSH clone/push
+> error until archlinux.org resolves this — do not spend time debugging or
+> retrying it. Re-enable only after a successful manual upload proves the
+> service accepts packages again.
