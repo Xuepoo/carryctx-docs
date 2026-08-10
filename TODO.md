@@ -36,3 +36,9 @@ Scaling from single-agent contexts to multi-agent swarms.
 ## Phase 4: The Ultimate Vision
 - [ ] **Native Integration**: Achieve out-of-the-box standard integration in major LLM tooling.
 - [ ] **Preset Marketplace**: Launch a decentralized registry for CarryCtx Presets, heavily audited for security.
+
+## Follow-ups from 0.5.0 triage (2026-08-10, see reports/)
+
+- [ ] **Wire `touch_activity`**: `sessions.last_activity_at` equals `started_at` on every session in vectojs — nothing calls `touch_activity`, so session timing (and the `stale_after` staleness rule) have no data to work from. Decide where to call it (progress note, checkpoint, resume, periodic) and whether `stats` should show tracked time vs. span.
+- [ ] **`mark_stale_sessions` is dead code**: defined in `application/session.rs` but never invoked by any command; stale sessions are never auto-marked. Call it on `resume`/`session start` (with the config's `stale_after`).
+- [ ] **Release workflow `Build (${{ matrix.target }})` check** renders as `skipping` on PRs — the matrix template does not resolve for PR checks; fix the workflow so the build gate actually reports.
