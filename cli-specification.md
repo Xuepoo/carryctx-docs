@@ -10,23 +10,23 @@
 
 CarryCtx CLI 应同时服务于：
 
-* Coding Agent
-* 人类开发者
-* Shell Script
-* CI
-* Agent Skill
-* 后续 MCP Adapter
+- Coding Agent
+- 人类开发者
+- Shell Script
+- CI
+- Agent Skill
+- 后续 MCP Adapter
 
 CLI 必须具备：
 
-* 稳定的命令名称
-* 确定性的行为
-* 机器可读 JSON
-* 明确的 Exit Code
-* 非交互模式
-* 可审计的写操作
-* 可预测的配置解析
-* 清晰的错误恢复建议
+- 稳定的命令名称
+- 确定性的行为
+- 机器可读 JSON
+- 明确的 Exit Code
+- 非交互模式
+- 可审计的写操作
+- 可预测的配置解析
+- 清晰的错误恢复建议
 
 ---
 
@@ -81,10 +81,10 @@ carryctx --project ~/Develop/carryctx status
 
 该路径可以是：
 
-* Repository root
-* Repository 子目录
-* Linked worktree
-* `.git` 指向的 worktree
+- Repository root
+- Repository 子目录
+- Linked worktree
+- `.git` 指向的 worktree
 
 ---
 
@@ -110,12 +110,12 @@ carryctx --config ./ci/carryctx.toml status
 
 JSON 模式下：
 
-* 不输出 ANSI Color
-* 不输出 Spinner
-* 不输出交互提示
-* `stdout` 只输出结果 JSON
-* 错误 JSON 输出到 `stderr`
-* 必须设置非零 Exit Code
+- 不输出 ANSI Color
+- 不输出 Spinner
+- 不输出交互提示
+- `stdout` 只输出结果 JSON
+- 错误 JSON 输出到 `stderr`
+- 必须设置非零 Exit Code
 
 ---
 
@@ -139,10 +139,10 @@ stdin is not a TTY
 
 对于支持的写操作，仅输出计划变更，不写入：
 
-* SQLite
-* Git
-* 配置文件
-* 文件系统
+- SQLite
+- Git
+- 配置文件
+- 文件系统
 
 例如：
 
@@ -302,16 +302,16 @@ carryctx status
 
 默认输出：
 
-* Project
-* Current Agent
-* Current Session
-* Current Task
-* Git State
-* Active Sessions
-* Task 状态计数
-* 最近活动
-* Blocker
-* Scope 冲突
+- Project
+- Current Agent
+- Current Session
+- Current Task
+- Git State
+- Active Sessions
+- Task 状态计数
+- 最近活动
+- Blocker
+- Scope 冲突
 
 `--mine` 仅显示当前 Agent 相关内容。
 
@@ -354,10 +354,10 @@ carryctx resume
 
 `resume` 不得自动：
 
-* 修改任务
-* 创建 Checkpoint
-* 提交 Git
-* 更改 Task Owner
+- 修改任务
+- 创建 Checkpoint
+- 提交 Git
+- 更改 Task Owner
 
 使用：
 
@@ -445,15 +445,15 @@ carryctx checkpoint \
 
 自动采集：
 
-* Branch
-* HEAD
-* Dirty State
-* Staged Files
-* Modified Files
-* Untracked Files
-* Diff Stats
-* VCS Backend（`vcs_backend`: `"git"` 或 `"jj"`）
-* Changed Files（`changed_files`：跨两种后端都准确的合并文件列表）
+- Branch
+- HEAD
+- Dirty State
+- Staged Files
+- Modified Files
+- Untracked Files
+- Diff Stats
+- VCS Backend（`vcs_backend`: `"git"` 或 `"jj"`）
+- Changed Files（`changed_files`：跨两种后端都准确的合并文件列表）
 
 当检测到 [Jujutsu (jj) colocated 仓库](../plans/2026-07-25-jujutsu-compatibility.md)（`.git/` 旁存在 `.jj/`）时，`vcs_backend` 为 `"jj"`，且 `staged_files`/`modified_files`/`untracked_files` 始终为空数组 —— jj 的自动工作副本快照机制会让这个三分法失去意义（只读命令也会写入 Git index）。此时应使用 `changed_files`，它在两种后端下都是准确的“变更文件”合并列表。`dirty` 与 Diff Stats 在两种后端下都保持准确。
 
@@ -487,13 +487,13 @@ carryctx project import
 
 显示：
 
-* Project ID
-* Repository Root
-* Git Common Dir
-* Database Path
-* Main Branch
-* Schema Version
-* Config Sources
+- Project ID
+- Repository Root
+- Git Common Dir
+- Database Path
+- Main Branch
+- Schema Version
+- Config Sources
 
 ## `project migrate`
 
@@ -503,10 +503,10 @@ carryctx project migrate
 
 必须：
 
-* 检查目标版本
-* 创建备份
-* 事务执行
-* 写入 Migration Event
+- 检查目标版本
+- 创建备份
+- 事务执行
+- 写入 Migration Event
 
 ---
 
@@ -619,8 +619,8 @@ carryctx session end \
 
 没有最新 Checkpoint 时：
 
-* TTY：提示创建
-* Non-interactive：返回 Warning 或根据 strict 配置失败
+- TTY：提示创建
+- Non-interactive：返回 Warning 或根据 strict 配置失败
 
 ---
 
@@ -698,13 +698,13 @@ Claim 必须在一个 SQLite Transaction 中完成。
 
 检查：
 
-* Task 存在
-* Task 可接管
-* 强依赖已完成
-* 当前未被其他 Agent 接管
-* Agent active
-* 单 Agent Task 限制
-* Worktree 冲突
+- Task 存在
+- Task 可接管
+- 强依赖已完成
+- 当前未被其他 Agent 接管
+- Agent active
+- 单 Agent Task 限制
+- Worktree 冲突
 
 ---
 
@@ -821,11 +821,11 @@ CarryCtx 使用系统 Git CLI 执行 worktree 操作。当检测到 [Jujutsu (jj
 
 删除前必须检查：
 
-* Dirty State
-* Untracked Files
-* Active Session
-* 未完成 Task
-* 未合并 Commit
+- Dirty State
+- Untracked Files
+- Active Session
+- 未完成 Task
+- 未合并 Commit
 
 ---
 
@@ -840,6 +840,9 @@ carryctx decision supersede
 ```
 
 Decision 不允许直接删除。
+
+`decision list` 可选 `--task <ref>`（0.5.5 起）只返回该任务下的决策；
+ref 必须可解析，否则返回 `RESOURCE_NOT_FOUND`。不带 `--task` 时列出全部。
 
 错误 Decision 使用：
 
@@ -872,11 +875,11 @@ carryctx handoff create \
 
 Accept 操作应：
 
-* 验证目标 Agent
-* 更新 Handoff 状态
-* 可选转移 Task Owner
-* 创建新 Session
-* 写入 Event
+- 验证目标 Agent
+- 更新 Handoff 状态
+- 可选转移 Task Owner
+- 创建新 Session
+- 写入 Event
 
 是否转移 Owner 必须通过：
 
@@ -1101,8 +1104,8 @@ HO-0003    open         → 01KY7HA5  Bug B: per-character positioned carriers .
 
 需要完整字段时使用以下任一方式（JSON 输出不受影响，始终为完整 Envelope）：
 
-* 全局 `--verbose` 标志：`carryctx task show CTX-0321 --verbose`
-* 配置文件：`.carryctx/config.toml` 中设置 `[output] verbose = true`
+- 全局 `--verbose` 标志：`carryctx task show CTX-0321 --verbose`
+- 配置文件：`.carryctx/config.toml` 中设置 `[output] verbose = true`
 
 ## 25.3 字段投影
 
@@ -1166,6 +1169,9 @@ JSON 模式下：
 JSON Warning 放在成功 Envelope 的 `warnings` 中，Verbose 诊断放在 `meta.diagnostics` 中，不额外输出非 JSON 文本。
 
 秘密、Token 和完整环境变量不得输出到日志。
+
+管道提前关闭（如 `carryctx checkpoint list | head -3`）时，进程以退出码 **141**
+（128 + SIGPIPE，Unix 惯例）静默终止，不输出 panic 信息。
 
 ---
 
