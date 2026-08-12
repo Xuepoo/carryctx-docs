@@ -764,7 +764,6 @@ owner 与 status 不使用 edit 修改，分别走 claim/release/start 等转换
 
 ```text
 carryctx progress todo
-carryctx progress done
 carryctx progress block
 carryctx progress risk
 carryctx progress note
@@ -781,7 +780,7 @@ carryctx progress reorder
 
 ```bash
 carryctx progress todo "Implement WAL initialization"
-carryctx progress done "Created migration table"
+carryctx progress note "Created migration table"
 carryctx progress block "Waiting for config schema"
 ```
 
