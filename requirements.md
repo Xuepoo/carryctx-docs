@@ -565,7 +565,7 @@ Progress Item 至少具有：
 * Completed
 * Removed
 
-`progress done` 创建一个已完成的 Todo；类型和生命周期状态不得混为同一字段。
+`progress complete` 将条目标记为已完成；类型和生命周期状态不得混为同一字段。
 
 ---
 
@@ -1231,10 +1231,11 @@ carryctx doctor
 
 ## FR-PROGRESS-001
 
-Agent 应能够添加已完成事项：
+Agent 应能够添加进度事项并标记完成：
 
 ```bash
-carryctx progress done "Implemented LRU cache"
+carryctx progress todo "Implemented LRU cache"
+carryctx progress complete <ITEM_REF>
 ```
 
 ---
@@ -2261,7 +2262,7 @@ carryctx session start
 # 18.2 Agent 工作并关闭窗口
 
 ```bash
-carryctx progress done "Created SQLite schema"
+carryctx progress note "Created SQLite schema"
 carryctx progress todo "Implement migrations"
 
 carryctx checkpoint \
@@ -2677,7 +2678,8 @@ carryctx task claim CTX-0001
 执行：
 
 ```bash
-carryctx progress done "Completed A"
+carryctx progress todo "A"
+carryctx progress complete <ITEM_REF>
 carryctx progress todo "Complete B"
 ```
 

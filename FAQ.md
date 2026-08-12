@@ -50,7 +50,7 @@ carryctx session start
 开发期间，Agent B 不断记录关键技术决策：
 ```bash
 carryctx progress note "使用 Redis Lua 脚本保证库存扣减的原子性"
-carryctx progress done "Redis lua 脚本编写完成"
+carryctx progress note "Redis lua 脚本编写完成"
 ```
 完成并提交代码后（如果安装了 hook 会自动 checkpoint）：
 ```bash
