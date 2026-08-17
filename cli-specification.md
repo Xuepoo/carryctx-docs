@@ -662,7 +662,7 @@ carryctx task create \
 --parent <task-id>
 --depends-on <task-id>
 --scope <glob>
---owner <agent-id>
+--assignee <agent-id>
 --status <status>
 ```
 
@@ -935,11 +935,10 @@ carryctx search "markdown worker protocol"
 <query>       (位置参数，必填)
 --type        task | progress | checkpoint | decision
 --status      按拥有该记录的 Task 的状态过滤
---owner       按拥有该记录的 Task 的 owner agent 过滤（名称或 ULID）
---limit       最大返回条数，默认 20
-```
+--assignee    按拥有该记录的 Task 的 owner agent 过滤（名称或 ULID）
+--limit       最大返回数量（默认 20）
 
-`--owner` 命名上有意区别于全局 `--agent`/`CARRYCTX_AGENT`：两者同名会导致 clap 把全局身份参数的值泄漏进子命令的局部参数，`event list --agent` 曾经踩过这个坑（见 CHANGELOG 0.2.1），`search` 直接用不同名字规避。
+`--assignee` 命名上有意区别于全局 `--agent`/`CARRYCTX_AGENT`（别名为 `--owner`）：两者同名会导致 clap 把全局身份参数的值泄漏进子命令的局部参数，`event list --agent` 曾经踩过这个坑（见 CHANGELOG 0.2.1），`search` 直接用不同名字规避。
 
 每条结果（`SearchHit`）：
 
