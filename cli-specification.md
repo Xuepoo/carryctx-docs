@@ -53,7 +53,7 @@ carryctx resume --json
 --project <path>
 --config <path>
 --profile <name>
---agent <agent-id>
+--agent <agent-id>     # 别名: --owner
 --session <session-id>
 --task <task-id>
 --format <text|json|markdown>
