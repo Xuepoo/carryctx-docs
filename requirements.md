@@ -1034,7 +1034,7 @@ carryctx task show CTX-0001
 
 ```bash
 carryctx task list --status in_progress
-carryctx task list --owner claude-auth
+carryctx task list --assignee claude-auth
 carryctx task list --ready
 carryctx task list --blocked
 carryctx task list --mine
