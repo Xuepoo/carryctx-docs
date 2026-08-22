@@ -1,8 +1,8 @@
 # CarryCtx CLI 命令规范
 
 **文档路径：** `carryctx-docs/cli-specification.md`
-**文档版本：** v0.1
-**适用版本：** CarryCtx v0.1.x
+**文档版本：** v0.6.0
+**适用版本：** CarryCtx v0.6.x
 
 ---
 
@@ -193,7 +193,7 @@ CarryCtx 不应因为当前目录没有 `.carryctx/` 就立即失败。
 2. `CARRYCTX_TASK`
 3. 当前 Session
 4. 当前 worktree
-5. 当前 Agent 的唯一 active Task
+5. 当前 Agent 恰好唯一的 active Task；如果有多个则进入交互式选择
 6. 交互式选择
 7. 返回 `TASK_NOT_RESOLVED`
 
@@ -229,6 +229,7 @@ carryctx project
 carryctx agent
 carryctx session
 carryctx task
+carryctx team
 carryctx progress
 carryctx worktree
 carryctx decision
@@ -554,6 +555,18 @@ carryctx agent rename
 carryctx agent deactivate
 ```
 
+Since v0.6.0, `agent register` accepts an optional execution kind:
+
+```bash
+carryctx agent register --name planner --kind commander --role planning
+carryctx agent register --name worker-1 --kind subagent --role implementation
+```
+
+`--kind` accepts only `commander` or `subagent`. Omitting it leaves `kind` as
+`null`, preserving pre-Team behavior. Registering a duplicate agent name is
+rejected; it does not create a second Agent. `role` is descriptive metadata
+and does not grant permissions or select execution policy.
+
 注册：
 
 ```bash
@@ -664,7 +677,15 @@ carryctx task create \
 --scope <glob>
 --assignee <agent-id>
 --status <status>
+--team <team-id-or-name>
+--required-role <role>
 ```
+
+`--team` associates a new Task with an existing Team in the current project.
+`--required-role` stores an advisory role label for commander or harness
+queries; it does not prevent claiming, starting, or assigning a Task. Both
+fields are serialized as `team_id` and `required_role` in JSON. `task edit`
+also accepts `--required-role`.
 
 ---
 
@@ -686,6 +707,104 @@ cancelled
 INVALID_TASK_TRANSITION
 ```
 
+## Team Coordination (v0.6.0)
+
+Team coordination is a durable, project-scoped record set for a commander or
+external execution harness. It is not a worker pool, scheduler, session pool,
+or concurrency policy. Team, Agent, and Task references are resolved against
+the current project; a record from another project cannot be used even when
+its ID is known.
+
+### Commands
+
+```text
+carryctx team create --name <NAME> [--commander <AGENT_REF>]
+carryctx team member add <TEAM_REF> --agent <AGENT_REF> [--role <ROLE>]
+carryctx team member remove <TEAM_REF> --agent <AGENT_REF>
+carryctx team commander set <TEAM_REF> --agent <AGENT_REF>
+carryctx team commander set <TEAM_REF> --clear
+carryctx team status [<TEAM_REF>]
+carryctx team context [<TEAM_REF>] [--agent-for <AGENT_REF>] [--task <TASK_REF>]
+carryctx task team set <TASK_REF> --team <TEAM_REF|none>
+carryctx task team unset <TASK_REF>
+```
+
+`team create --commander` atomically creates the Team, adds the commander as
+its first member, and sets the commander. `team commander set` requires the
+target Agent to already be a member; `--clear` temporarily leaves the Team
+without a commander. Removing the current commander is rejected until the
+commander is cleared or replaced. Duplicate membership is rejected. There is
+no Team delete command in v0.6.0; an empty Team remains available for history.
+
+Team and task mutations are transactional and audited with these event types:
+`team.created`, `team.member_added`, `team.member_removed`,
+`team.commander_changed`, and `task.team_changed`. A failed mutation leaves
+the state and its audit event unchanged. `task team set --team none` and
+`task team unset` both clear `team_id`; responses include the prior value as
+`previous_team_id`.
+
+### Read-only projections and sessions
+
+`team status` and `team context` only read persisted project records. They do
+not create, end, or reset a Session, change membership, change task ownership,
+or associate a Task with a Team. `team status` reports Team metadata, members,
+member kinds and roles, active session IDs, associated tasks, and counts. Its
+`active_task_count` is descriptive only; it is not a capacity or liveness
+signal.
+
+`team context` rebuilds a structured projection from durable records. The
+commander view may include members, associated tasks, dependencies, scopes,
+progress, blockers, scope conflicts, conflicts, latest checkpoints, decisions,
+handoffs, and recent events. A member view is task-relevant by default and can
+be narrowed with `--task`; `--agent-for` selects the member view. Without a
+Team reference, the command resolves a single Team from `--task`,
+`--agent-for`, or the project only when exactly one Team exists. An explicitly
+provided `--session` is still validated; an unknown session returns an error,
+but a valid session is never changed by these read-only commands.
+
+### JSON contract
+
+Use `--json` for the stable machine-readable envelope. Team projections and
+mutation data use `snake_case`, including `schema_version`, `project_id`,
+`commander_agent_id`, `active_session_id`, `active_task_count`, `team_id`,
+`required_role`, and `previous_team_id`. The command names are:
+`team.create`, `team.member_add`, `team.member_remove`, `team.commander_set`,
+`team.status`, `team.context`, `task.team_set`, and `task.team_unset`.
+
+The status form with no Team reference returns `data.teams`. A single-Team
+status returns `data.team`, `data.members`, and `data.counts`. Context returns
+`data.team`, `data.view`, the projection arrays, and
+`data.rebuild.source = "durable_records"`. Mutation responses include changed
+`team`, `member`, `commander`, or `task` data and an `operation.applied`
+boolean; `--dry-run --json` sets it to `false` and writes nothing.
+
+### Team errors and exit codes
+
+| Condition                                                                          | JSON error code                                                              | Exit code |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | --------: |
+| Team, Agent, Task, or member reference is absent in the current project            | `RESOURCE_NOT_FOUND` (explicit Team projection lookup uses `TEAM_NOT_FOUND`) |         7 |
+| Commander is not a Team member, duplicate membership, or current commander removal | `STATE_CONFLICT`                                                             |         3 |
+| Empty Team name                                                                    | `VALIDATION_FAILED`                                                          |         8 |
+| Unknown `--kind` value                                                             | `VALIDATION_FAILED`                                                          |         8 |
+| Database or migration backup failure                                               | `DATABASE_ERROR`, `BACKUP_FAILED`, or `BACKUP_INTEGRITY_FAILED`              |         5 |
+
+JSON successes go to stdout and JSON errors go to stderr, with the standard
+`schema_version`, `command`, `success`, `data`/`error`, `warnings`, and `meta`
+envelope. Team mutation audit events carry the invocation Agent when one is
+resolved; Team membership does not imply a current Session.
+
+### Migration and backup behavior
+
+Team fields are introduced by project migrations `0012_agent_teams` and
+`0013_agent_kind_constraint`. When pending migrations are applied to an
+already-versioned database, CarryCtx first creates and integrity-checks a
+timestamped `state_*.sqlite` backup under the state database's `backups/`
+directory. If the database has no migration history or is at version zero,
+that pre-migration backup is not required. A backup creation or integrity
+failure aborts the migration. Migrations 0012 and 0013 rebuild affected SQLite
+tables as part of their schema changes; this does not change public Team
+command semantics.
+
 ---
 
 ## 16.3 Claim
@@ -703,8 +822,14 @@ Claim 必须在一个 SQLite Transaction 中完成。
 - 强依赖已完成
 - 当前未被其他 Agent 接管
 - Agent active
-- 单 Agent Task 限制
 - Worktree 冲突
+
+一个 Agent 可以同时拥有多个 active/in-progress Task。`task claim`、`task start`
+和 `task assign` 不会因为当前 Agent 已持有其他任务而失败。历史配置键
+`task.single_active_task_per_agent` 仍可被接受以保持配置兼容，但它是 deprecated
+且 advisory，不是 enforced cap，也不改变上述命令行为。现有配置无需立即迁移；
+容量限制或批处理策略由外部 commander 或执行 harness 决定，CarryCtx 不新增框架
+级别的 enforcement。
 
 ---
 
@@ -894,7 +1019,7 @@ Accept 操作应：
 
 ```text
 carryctx event list
-carryctx event show
+carryctx event show <event-id>
 ```
 
 过滤：
@@ -903,7 +1028,7 @@ carryctx event show
 --task
 --agent
 --session
---type
+--event-type
 --since
 --until
 --limit
@@ -931,7 +1056,7 @@ carryctx search "markdown worker protocol"
 
 参数：
 
-```text
+````text
 <query>       (位置参数，必填)
 --type        task | progress | checkpoint | decision
 --status      按拥有该记录的 Task 的状态过滤
@@ -946,16 +1071,16 @@ carryctx search "markdown worker protocol"
 {
   "kind": "checkpoint",
   "id": "01J...",
-  "displayId": null,
-  "taskId": "01J...",
-  "taskDisplayId": "CTX-0001",
-  "taskStatus": "in_progress",
+  "display_id": null,
+  "task_id": "01J...",
+  "task_display_id": "CTX-0001",
+  "task_status": "in_progress",
   "branch": "feature/markdown-worker",
   "snippet": "PR #263 merged - [markdown] worker-owned source",
   "score": -3.2,
-  "createdAt": "2026-07-28T19:00:00Z"
+  "created_at": "2026-07-28T19:00:00Z"
 }
-```
+````
 
 `branch` 解析顺序：Checkpoint 命中优先使用该 Checkpoint 自身记录的 `branch`（创建时的真实分支），否则回退到该 Task 当前的 worktree 绑定分支；其余三种命中类型直接使用 worktree 绑定分支。两者都缺失时为 `null`。
 
@@ -968,6 +1093,7 @@ carryctx search "markdown worker protocol"
 ```bash
 carryctx doctor
 carryctx doctor --fix
+carryctx doctor --prune-stale-worktrees
 carryctx doctor --json
 ```
 
@@ -995,6 +1121,11 @@ skill
   "repairable": true
 }
 ```
+
+`worktrees.stale` reports registered worktrees whose directories are missing. The
+check is read-only by default. `--prune-stale-worktrees` explicitly removes only
+the stale registrations from SQLite; it never deletes filesystem paths and emits
+a `worktree.pruned` audit event for each removed registration.
 
 破坏性修复要求：
 
@@ -1037,11 +1168,31 @@ carryctx skill install --project
 
 # 25. JSON 输出规范
 
+## 25.0 字段命名约定
+
+已发布 CLI 的 JSON 成功/错误 Envelope 使用 snake_case：
+`schema_version`、`command`、`success`、`data`、`warnings`、`meta`、`error`。
+由 Rust 实体记录直接序列化的字段也使用 snake_case，例如
+`display_id`、`owner_agent_id`、`project_id`、`occurred_at`。这些名称是当前
+`schema_version = 1` 的公共接口；消费者不得根据旧示例把它们转换为 camelCase。
+
+部分命令的 `data` 是历史上手工构造的投影，而不是实体记录本身，因此可能仍
+包含既有 camelCase 键（例如 `status` 的 `projectId`、`projectName` 和
+`activeSessions`）。这些命令的现有键保持不变，不能从本节的实体命名约定推断
+出一次性的全局重命名。
+
+Event 外层记录遵循实体命名约定，但 `payload` 是 append-only 的历史 JSON，
+其内部键不属于统一重编码的实体字段。已发布事件中两种形式都存在，例如
+`session_id`、`task_id` 与 `handoffId`、`beforeStatus`、`ownerAgentId`。
+现有 payload 不回写、不补发别名，也不在读取时改名。新事件 payload 应使用
+snake_case；若将来需要迁移旧 payload，必须单独提出版本化、兼容性和回填方案，
+不得借此文档决定 broad schema migration。此决定保持所有现有事件消费者兼容。
+
 成功：
 
 ```json
 {
-  "schemaVersion": 1,
+  "schema_version": 1,
   "command": "task.list",
   "success": true,
   "data": {
@@ -1049,7 +1200,6 @@ carryctx skill install --project
   },
   "warnings": [],
   "meta": {
-    "projectId": "carryctx",
     "timestamp": "2026-07-22T18:30:00Z"
   }
 }
@@ -1059,7 +1209,7 @@ carryctx skill install --project
 
 ```json
 {
-  "schemaVersion": 1,
+  "schema_version": 1,
   "command": "task.claim",
   "success": false,
   "error": {
@@ -1184,7 +1334,7 @@ internal
 deprecated
 ```
 
-v0.1 中：
+v0.6.0 中：
 
 ```text
 stable:
@@ -1195,6 +1345,7 @@ stable:
   checkpoint
   project show/list/register/unregister/migrate/backup/restore
   task
+  team create/member/commander/status/context
   progress
   session
   agent

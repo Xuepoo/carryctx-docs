@@ -10,27 +10,27 @@
 
 本文档定义 CarryCtx 的：
 
-* 配置文件位置
-* XDG Base Directory 使用规范
-* 项目级 `.carryctx/` 目录结构
-* 配置优先级
-* 配置合并规则
-* 项目状态数据库位置
-* 静态资源、缓存和日志存储位置
-* 多 Git worktree 共享状态方式
-* 配置文件格式与 Schema
-* 环境变量映射规则
-* 跨平台路径策略
+- 配置文件位置
+- XDG Base Directory 使用规范
+- 项目级 `.carryctx/` 目录结构
+- 配置优先级
+- 配置合并规则
+- 项目状态数据库位置
+- 静态资源、缓存和日志存储位置
+- 多 Git worktree 共享状态方式
+- 配置文件格式与 Schema
+- 环境变量映射规则
+- 跨平台路径策略
 
 CarryCtx 必须明确区分：
 
-* Configuration
-* Persistent State
-* Application Data
-* Cache
-* Runtime Files
-* Project Configuration
-* Project Coordination State
+- Configuration
+- Persistent State
+- Application Data
+- Cache
+- Runtime Files
+- Project Configuration
+- Project Coordination State
 
 这些数据不得全部混合保存在 `.carryctx/` 中。
 
@@ -83,13 +83,13 @@ ${XDG_CONFIG_HOME:-$HOME/.config}/carryctx/
 
 用途：
 
-* 用户级默认配置
-* 默认 Agent 身份
-* UI 和输出偏好
-* 默认 Session 策略
-* 默认 worktree 目录模板
-* 默认 Context 输出限制
-* 用户定义的配置 Profile
+- 用户级默认配置
+- 默认 Agent 身份
+- UI 和输出偏好
+- 默认 Session 策略
+- 默认 worktree 目录模板
+- 默认 Context 输出限制
+- 用户定义的配置 Profile
 
 该目录中的配置适用于所有 CarryCtx 项目。
 
@@ -119,12 +119,12 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/carryctx/
 
 用途：
 
-* 已发现项目注册表
-* 最近访问的项目
-* 全局 Agent 使用记录
-* CarryCtx 自身日志
-* 全局迁移记录
-* 不属于单个 Git 项目的持久状态
+- 已发现项目注册表
+- 最近访问的项目
+- 全局 Agent 使用记录
+- CarryCtx 自身日志
+- 全局迁移记录
+- 不属于单个 Git 项目的持久状态
 
 `registry.sqlite` 只能作为项目索引，不能成为项目任务状态的唯一数据库。
 
@@ -159,14 +159,14 @@ ${XDG_DATA_HOME:-$HOME/.local/share}/carryctx/
 
 用途：
 
-* 已安装的 Agent Skill
-* Context 模板
-* Checkpoint 模板
-* Handoff 模板
-* JSON Schema
-* TOML Schema
-* 静态资源
-* Provider-specific Skill 适配文件
+- 已安装的 Agent Skill
+- Context 模板
+- Checkpoint 模板
+- Handoff 模板
+- JSON Schema
+- TOML Schema
+- 静态资源
+- Provider-specific Skill 适配文件
 
 这些文件属于持久应用数据，不应因为清理缓存而丢失。
 
@@ -198,24 +198,24 @@ ${XDG_CACHE_HOME:-$HOME/.cache}/carryctx/
 
 用途：
 
-* 生成后的 Context 缓存
-* 代码搜索索引
-* Git 状态短期缓存
-* Shell completion 缓存
-* 临时导出文件
-* 可重新下载或重新生成的资源
-* 更新检查元数据
+- 生成后的 Context 缓存
+- 代码搜索索引
+- Git 状态短期缓存
+- Shell completion 缓存
+- 临时导出文件
+- 可重新下载或重新生成的资源
+- 更新检查元数据
 
 该目录可以被用户安全删除。
 
 删除缓存不得导致：
 
-* Task 丢失
-* Session 丢失
-* Checkpoint 丢失
-* Decision 丢失
-* Handoff 丢失
-* 项目配置丢失
+- Task 丢失
+- Session 丢失
+- Checkpoint 丢失
+- Decision 丢失
+- Handoff 丢失
+- 项目配置丢失
 
 ---
 
@@ -229,10 +229,10 @@ $XDG_RUNTIME_DIR/carryctx/
 
 用途：
 
-* 进程锁
-* 临时 Socket
-* daemon PID
-* 短生命周期 IPC 文件
+- 进程锁
+- 临时 Socket
+- daemon PID
+- 短生命周期 IPC 文件
 
 如果 `XDG_RUNTIME_DIR` 不存在，则回退到：
 
@@ -272,12 +272,12 @@ Runtime 文件不得被视为持久状态。
 
 该文件：
 
-* 应提交到 Git
-* 应由所有 worktree 共享其逻辑配置
-* 应参与 Code Review
-* 可以覆盖全局配置
-* 不得包含机器私有路径或 Secret
-* 不得包含运行时 Task 状态
+- 应提交到 Git
+- 应由所有 worktree 共享其逻辑配置
+- 应参与 Code Review
+- 可以覆盖全局配置
+- 不得包含机器私有路径或 Secret
+- 不得包含运行时 Task 状态
 
 示例：
 
@@ -299,6 +299,9 @@ stale_after = "2h"
 single_active_session_per_agent = true
 
 [task]
+# Deprecated compatibility key. Multiple active tasks per agent are supported;
+# this key is accepted for existing configurations but has no effect on claim,
+# start, or assign. Capacity policy belongs to the commander or external harness.
 single_active_task_per_agent = true
 strict_completion = false
 
@@ -331,13 +334,13 @@ verbose = false
 
 该文件：
 
-* 不提交到 Git
-* 必须加入 `.gitignore`
-* 覆盖 `.carryctx/config.toml`
-* 可以包含绝对路径
-* 可以包含当前机器的工具路径
-* 可以指定当前开发者的默认 Agent
-* 不得存储认证 Token
+- 不提交到 Git
+- 必须加入 `.gitignore`
+- 覆盖 `.carryctx/config.toml`
+- 可以包含绝对路径
+- 可以包含当前机器的工具路径
+- 可以指定当前开发者的默认 Agent
+- 不得存储认证 Token
 
 示例：
 
@@ -367,11 +370,11 @@ color = "always"
 
 用途：
 
-* 覆盖全局 CarryCtx Skill
-* 描述项目特有工作协议
-* 定义项目测试流程
-* 定义项目架构约束
-* 定义 Checkpoint 和 Handoff 要求
+- 覆盖全局 CarryCtx Skill
+- 描述项目特有工作协议
+- 定义项目测试流程
+- 定义项目架构约束
+- 定义 Checkpoint 和 Handoff 要求
 
 推荐：
 
@@ -453,18 +456,18 @@ $(git rev-parse --git-common-dir)/carryctx/
 
 保存：
 
-* Project
-* Agent
-* Session
-* Task
-* Dependency
-* Progress Item
-* Worktree
-* Checkpoint
-* Decision
-* Handoff
-* Event
-* Project-level metadata
+- Project
+- Agent
+- Session
+- Task
+- Dependency
+- Progress Item
+- Worktree
+- Checkpoint
+- Decision
+- Handoff
+- Event
+- Project-level metadata
 
 该数据库是项目运行状态的 Source of Truth。
 
@@ -501,11 +504,11 @@ state-2026-07-22T183000Z-v1.sqlite
 
 以下操作前必须自动备份：
 
-* Schema migration
-* `doctor --fix` 的破坏性修复
-* Database restore
-* 批量数据导入
-* 不可逆数据转换
+- Schema migration
+- `doctor --fix` 的破坏性修复
+- Database restore
+- 批量数据导入
+- 不可逆数据转换
 
 ---
 
@@ -526,12 +529,12 @@ config.local.toml
 
 选择 TOML 的原因：
 
-* 适合人工维护
-* 支持注释
-* 层级结构清晰
-* 比 JSON 更适合配置文件
-* 与 `justfile`、Cargo 等开发工具风格接近
-* 不需要将运行时状态写入配置文件
+- 适合人工维护
+- 支持注释
+- 层级结构清晰
+- 比 JSON 更适合配置文件
+- 与 `justfile`、Cargo 等开发工具风格接近
+- 不需要将运行时状态写入配置文件
 
 运行时状态仍然使用 SQLite，不使用 TOML。
 
@@ -867,18 +870,18 @@ Effective source:
 
 # 13. 权威数据边界
 
-| 数据            | 默认位置                             | 是否权威 |   是否可删除 |
-| ------------- | -------------------------------- | ---: | ------: |
-| 全局配置          | XDG Config                       |    是 |       否 |
-| 项目配置          | `.carryctx/config.toml`          |    是 |       否 |
-| 项目本地配置        | `.carryctx/config.local.toml`    |    是 | 可重建但不建议 |
-| 项目 State DB   | Git common dir                   |    是 |       否 |
-| 全局项目注册表       | XDG State                        |    否 |    可以重建 |
-| Skill         | XDG Data / `.carryctx/skills`    |    是 |   视来源而定 |
-| Template      | XDG Data / `.carryctx/templates` |    是 |   视来源而定 |
-| Context Cache | XDG Cache                        |    否 |       是 |
-| Code Index    | XDG Cache                        |    否 |       是 |
-| Runtime Lock  | XDG Runtime                      |    否 |       是 |
+| 数据           | 默认位置                         | 是否权威 |     是否可删除 |
+| -------------- | -------------------------------- | -------: | -------------: |
+| 全局配置       | XDG Config                       |       是 |             否 |
+| 项目配置       | `.carryctx/config.toml`          |       是 |             否 |
+| 项目本地配置   | `.carryctx/config.local.toml`    |       是 | 可重建但不建议 |
+| 项目 State DB  | Git common dir                   |       是 |             否 |
+| 全局项目注册表 | XDG State                        |       否 |       可以重建 |
+| Skill          | XDG Data / `.carryctx/skills`    |       是 |     视来源而定 |
+| Template       | XDG Data / `.carryctx/templates` |       是 |     视来源而定 |
+| Context Cache  | XDG Cache                        |       否 |             是 |
+| Code Index     | XDG Cache                        |       否 |             是 |
+| Runtime Lock   | XDG Runtime                      |       否 |             是 |
 
 ---
 

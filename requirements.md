@@ -15,13 +15,13 @@
 
 本文档主要服务于：
 
-* CarryCtx 的设计与开发
-* CLI 命令设计
-* SQLite 数据模型设计
-* Agent Skill 编写
-* 自动化测试与验收
-* 后续版本规划
-* 开源项目 README 和贡献者文档编写
+- CarryCtx 的设计与开发
+- CLI 命令设计
+- SQLite 数据模型设计
+- Agent Skill 编写
+- 自动化测试与验收
+- 后续版本规划
+- 开源项目 README 和贡献者文档编写
 
 本文档重点回答：
 
@@ -39,52 +39,52 @@
 
 大型基础设施项目通常具有以下特点：
 
-* 仓库规模较大
-* 模块数量较多
-* 任务持续时间较长
-* 多个任务之间存在依赖关系
-* 一个任务可能跨越多个 Agent Session
-* 多个 Coding Agent 可能并行工作
-* 项目可能使用多个 Git worktree
-* 重要信息分散在代码、文档、Issue 和 Agent 对话中
+- 仓库规模较大
+- 模块数量较多
+- 任务持续时间较长
+- 多个任务之间存在依赖关系
+- 一个任务可能跨越多个 Agent Session
+- 多个 Coding Agent 可能并行工作
+- 项目可能使用多个 Git worktree
+- 重要信息分散在代码、文档、Issue 和 Agent 对话中
 
 项目开发过程中可能同时使用不同的 Coding Agent，例如：
 
-* Claude Code
-* OpenCode
-* GitHub Copilot
-* Kiro
-* Antigravity
-* Codex
-* 其他可以执行 Shell 命令的 Agent
+- Claude Code
+- OpenCode
+- GitHub Copilot
+- Kiro
+- Antigravity
+- Codex
+- 其他可以执行 Shell 命令的 Agent
 
 这些 Agent 通常拥有独立的会话上下文。
 
 当 Agent 窗口关闭、上下文压缩、模型切换或任务交接后，新 Session 很难准确知道：
 
-* 上一个 Session 正在处理什么
-* 已经完成了哪些工作
-* 哪些工作尚未完成
-* 当前代码位于哪个 worktree
-* 当前 branch 和 commit 是什么
-* 工作区是否存在未提交修改
-* 当前任务依赖哪些其他任务
-* 其他相关任务完成到了什么程度
-* 最近发生了哪些架构决策
-* 是否有其他 Agent 正在修改相同区域
-* 下一步应该继续执行什么
+- 上一个 Session 正在处理什么
+- 已经完成了哪些工作
+- 哪些工作尚未完成
+- 当前代码位于哪个 worktree
+- 当前 branch 和 commit 是什么
+- 工作区是否存在未提交修改
+- 当前任务依赖哪些其他任务
+- 其他相关任务完成到了什么程度
+- 最近发生了哪些架构决策
+- 是否有其他 Agent 正在修改相同区域
+- 下一步应该继续执行什么
 
 如果完全依赖 Markdown 文档维护这些信息，会产生以下问题：
 
-* 文档数量不断增加
-* Agent 不知道应该读哪些文档
-* 文档内容容易过期
-* 多个 Agent 可能同时修改状态文档
-* 状态缺少统一格式
-* 很难查询和聚合
-* 很难区分当前状态和历史记录
-* 很难自动检测 worktree、branch 和代码变更
-* Agent 需要消耗大量上下文读取无关信息
+- 文档数量不断增加
+- Agent 不知道应该读哪些文档
+- 文档内容容易过期
+- 多个 Agent 可能同时修改状态文档
+- 状态缺少统一格式
+- 很难查询和聚合
+- 很难区分当前状态和历史记录
+- 很难自动检测 worktree、branch 和代码变更
+- Agent 需要消耗大量上下文读取无关信息
 
 CarryCtx 用于解决上述项目状态连续性问题。
 
@@ -96,19 +96,19 @@ CarryCtx 是一个面向 Coding Agent 的、本地优先的项目状态与连续
 
 它通过保存结构化的：
 
-* Task
-* Agent
-* Session
-* Worktree
-* Progress
-* Remaining Work
-* Checkpoint
-* Dependency
-* Blocker
-* Decision
-* Handoff
-* Event
-* Git State
+- Task
+- Agent
+- Session
+- Worktree
+- Progress
+- Remaining Work
+- Checkpoint
+- Dependency
+- Blocker
+- Decision
+- Handoff
+- Event
+- Git State
 
 使不同 Coding Agent 能够跨窗口、跨 Session、跨工具持续完成同一个大型项目。
 
@@ -150,16 +150,16 @@ carryctx resume
 
 该命令应回答：
 
-* 当前项目是什么
-* 当前 Agent 身份是什么
-* 当前任务是什么
-* 上一个 Session 做了什么
-* 还有什么没有完成
-* 当前有哪些 Blocker
-* 当前 worktree、branch 和 commit 是什么
-* 工作区是否存在未提交修改
-* 相关任务最近发生了什么变化
-* 推荐下一步是什么
+- 当前项目是什么
+- 当前 Agent 身份是什么
+- 当前任务是什么
+- 上一个 Session 做了什么
+- 还有什么没有完成
+- 当前有哪些 Blocker
+- 当前 worktree、branch 和 commit 是什么
+- 工作区是否存在未提交修改
+- 相关任务最近发生了什么变化
+- 推荐下一步是什么
 
 ---
 
@@ -187,16 +187,16 @@ GitHub Copilot Review
 
 Agent 和项目维护者应能够查看：
 
-* 当前所有任务
-* 哪些任务正在进行
-* 哪些任务已经完成
-* 哪些任务被阻塞
-* 每个任务当前由谁处理
-* 最近一次 Checkpoint
-* 任务剩余事项
-* 任务依赖和被依赖关系
-* 可能发生修改冲突的任务
-* 当前存在的 worktree
+- 当前所有任务
+- 哪些任务正在进行
+- 哪些任务已经完成
+- 哪些任务被阻塞
+- 每个任务当前由谁处理
+- 最近一次 Checkpoint
+- 任务剩余事项
+- 任务依赖和被依赖关系
+- 可能发生修改冲突的任务
+- 当前存在的 worktree
 
 ---
 
@@ -241,12 +241,12 @@ CarryCtx 是管理工具，不是大型 Agent 编排平台。
 
 它不应要求：
 
-* 启动后台 Agent 集群
-* 配置复杂消息队列
-* 部署 Kubernetes
-* 托管模型
-* 创建中心化 SaaS 账户
-* 改造现有 Git 仓库结构
+- 启动后台 Agent 集群
+- 配置复杂消息队列
+- 部署 Kubernetes
+- 托管模型
+- 创建中心化 SaaS 账户
+- 改造现有 Git 仓库结构
 
 第一版本应能够以单个 npm CLI 包运行。
 
@@ -260,12 +260,12 @@ CarryCtx 第一阶段不负责以下能力。
 
 CarryCtx 不负责：
 
-* 启动 Claude Code
-* 启动 OpenCode
-* 调用 LLM API
-* 管理 Token
-* 管理模型上下文窗口
-* 控制 Agent 推理过程
+- 启动 Claude Code
+- 启动 OpenCode
+- 调用 LLM API
+- 管理 Token
+- 管理模型上下文窗口
+- 控制 Agent 推理过程
 
 ---
 
@@ -273,11 +273,11 @@ CarryCtx 不负责：
 
 CarryCtx 不负责自动：
 
-* 将需求拆分成任务
-* 选择最适合的模型
-* 给 Agent 自动分配工作
-* 根据模型能力调度任务
-* 判断应该并行还是串行执行
+- 将需求拆分成任务
+- 选择最适合的模型
+- 给 Agent 自动分配工作
+- 根据模型能力调度任务
+- 判断应该并行还是串行执行
 
 这些工作可以由人类或其他 Agent 完成。
 
@@ -289,12 +289,12 @@ CarryCtx 只负责保存拆分后的结果和状态。
 
 CarryCtx 不用于替代：
 
-* Jira
-* Linear
-* GitHub Projects
-* GitHub Issues
-* Notion
-* 企业级项目管理系统
+- Jira
+- Linear
+- GitHub Projects
+- GitHub Issues
+- Notion
+- 企业级项目管理系统
 
 CarryCtx 关注的是 Coding Agent 执行过程中的仓库状态和上下文连续性。
 
@@ -304,10 +304,10 @@ CarryCtx 关注的是 Coding Agent 执行过程中的仓库状态和上下文连
 
 CarryCtx 可以：
 
-* 检测潜在路径冲突
-* 提示两个任务可能修改相同文件
-* 记录任务关联的 worktree
-* 提示 branch 已经落后
+- 检测潜在路径冲突
+- 提示两个任务可能修改相同文件
+- 记录任务关联的 worktree
+- 提示 branch 已经落后
 
 但不承诺自动解决复杂 Git merge conflict。
 
@@ -317,12 +317,12 @@ CarryCtx 可以：
 
 第一版本不实现：
 
-* CodeQL 等价能力
-* 全语言 AST 数据库
-* 完整 Call Graph
-* 自动语义理解
-* 向量数据库
-* 大规模代码 Embedding
+- CodeQL 等价能力
+- 全语言 AST 数据库
+- 完整 Call Graph
+- 自动语义理解
+- 向量数据库
+- 大规模代码 Embedding
 
 后续可以通过 Adapter 集成这些能力。
 
@@ -334,16 +334,16 @@ CarryCtx 可以：
 
 项目维护者负责：
 
-* 初始化 CarryCtx
-* 定义项目配置
-* 创建和维护任务
-* 定义任务依赖
-* 查看项目整体状态
-* 处理长期未更新任务
-* 查看 Agent Session
-* 管理 worktree
-* 定义验证命令
-* 处理任务交接和异常状态
+- 初始化 CarryCtx
+- 定义项目配置
+- 创建和维护任务
+- 定义任务依赖
+- 查看项目整体状态
+- 处理长期未更新任务
+- 查看 Agent Session
+- 管理 worktree
+- 定义验证命令
+- 处理任务交接和异常状态
 
 ---
 
@@ -351,18 +351,18 @@ CarryCtx 可以：
 
 Coding Agent 通过 CarryCtx：
 
-* 注册或恢复身份
-* 查询当前任务
-* 启动 Session
-* 获取项目上下文
-* 更新工作进度
-* 记录未完成事项
-* 记录 Blocker
-* 创建 Checkpoint
-* 记录技术决策
-* 结束 Session
-* 创建 Handoff
-* 完成任务
+- 注册或恢复身份
+- 查询当前任务
+- 启动 Session
+- 获取项目上下文
+- 更新工作进度
+- 记录未完成事项
+- 记录 Blocker
+- 创建 Checkpoint
+- 记录技术决策
+- 结束 Session
+- 创建 Handoff
+- 完成任务
 
 ---
 
@@ -374,13 +374,13 @@ CarryCtx 不应假设所有使用者都是 AI Agent。
 
 人类开发者可以：
 
-* 查看任务进度
-* 接管 Agent 未完成的工作
-* 创建 Checkpoint
-* 修正错误状态
-* 记录决策
-* 查看相关 worktree
-* 将工作重新交给 Agent
+- 查看任务进度
+- 接管 Agent 未完成的工作
+- 创建 Checkpoint
+- 修正错误状态
+- 记录决策
+- 查看相关 worktree
+- 将工作重新交给 Agent
 
 ---
 
@@ -392,15 +392,15 @@ Project 表示一个由 CarryCtx 管理的 Git 仓库。
 
 一个 Project 应具有：
 
-* 唯一 ID
-* 项目名称
-* Git repository root
-* Git common directory
-* 默认主分支
-* 配置版本
-* 数据库版本
-* 创建时间
-* 最近更新时间
+- 唯一 ID
+- 项目名称
+- Git repository root
+- Git common directory
+- 默认主分支
+- 配置版本
+- 数据库版本
+- 创建时间
+- 最近更新时间
 
 ---
 
@@ -410,13 +410,13 @@ Agent 表示一个逻辑执行者。
 
 Agent 可以是：
 
-* Claude Code
-* OpenCode
-* Copilot
-* Kiro
-* Codex
-* Human
-* 自定义 Agent
+- Claude Code
+- OpenCode
+- Copilot
+- Kiro
+- Codex
+- Human
+- 自定义 Agent
 
 Agent 应具有稳定身份。
 
@@ -460,21 +460,21 @@ Task 表示可以被执行、暂停、恢复、交接和完成的一项工作。
 
 Task 应包含：
 
-* 标题
-* 详细描述
-* 当前状态
-* 优先级
-* 当前 Owner
-* 依赖任务
-* 被依赖任务
-* 已完成事项
-* 剩余事项
-* Blocker
-* 相关路径
-* 相关 worktree
-* 最新 Checkpoint
-* 相关决策
-* 验证要求
+- 标题
+- 详细描述
+- 当前状态
+- 优先级
+- 当前 Owner
+- 依赖任务
+- 被依赖任务
+- 已完成事项
+- 剩余事项
+- Blocker
+- 相关路径
+- 相关 worktree
+- 最新 Checkpoint
+- 相关决策
+- 验证要求
 
 ---
 
@@ -503,23 +503,23 @@ Checkpoint 应同时包含：
 
 ### 自动采集信息
 
-* 当前 worktree
-* 当前 branch
-* HEAD commit
-* 工作区是否 dirty
-* 修改文件列表
-* 未跟踪文件列表
-* Diff 统计
-* 创建时间
+- 当前 worktree
+- 当前 branch
+- HEAD commit
+- 工作区是否 dirty
+- 修改文件列表
+- 未跟踪文件列表
+- Diff 统计
+- 创建时间
 
 ### Agent 报告信息
 
-* 已完成工作
-* 剩余工作
-* 当前 Blocker
-* 已知风险
-* 下一步建议
-* 补充说明
+- 已完成工作
+- 剩余工作
+- 当前 Blocker
+- 已知风险
+- 下一步建议
+- 补充说明
 
 Checkpoint 是 `resume` 的主要数据来源。
 
@@ -544,26 +544,26 @@ Remaining:
 
 Progress Item 至少具有：
 
-* 内容
-* 类型
-* 状态
-* 创建时间
-* 完成时间
-* 来源 Session
-* 排序字段
+- 内容
+- 类型
+- 状态
+- 创建时间
+- 完成时间
+- 来源 Session
+- 排序字段
 
 类型可以包括：
 
-* Todo
-* Blocker
-* Risk
-* Note
+- Todo
+- Blocker
+- Risk
+- Note
 
 生命周期状态包括：
 
-* Open
-* Completed
-* Removed
+- Open
+- Completed
+- Removed
 
 `progress complete` 将条目标记为已完成；类型和生命周期状态不得混为同一字段。
 
@@ -582,10 +582,10 @@ TASK-153 depends on TASK-142
 
 CarryCtx 应能够查询：
 
-* 当前任务依赖什么
-* 哪些依赖已经完成
-* 哪些依赖仍然阻塞
-* 当前任务正在阻塞哪些其他任务
+- 当前任务依赖什么
+- 哪些依赖已经完成
+- 哪些依赖仍然阻塞
+- 当前任务正在阻塞哪些其他任务
 
 ---
 
@@ -595,10 +595,10 @@ Decision 表示项目中的重要技术决策。
 
 例如：
 
-* 缓存使用 LRU
-* 默认 TTL 为 15 分钟
-* 数据库迁移使用向后兼容策略
-* 不允许在核心模块引入某个依赖
+- 缓存使用 LRU
+- 默认 TTL 为 15 分钟
+- 数据库迁移使用向后兼容策略
+- 不允许在核心模块引入某个依赖
 
 Decision 不应只存在于 Agent 对话中。
 
@@ -610,19 +610,19 @@ Handoff 表示任务从一个 Session 或 Agent 交接给另一个 Session 或 A
 
 Handoff 应包含：
 
-* 来源 Agent
-* 来源 Session
-* 目标 Agent，可选
-* 任务 ID
-* 工作摘要
-* 已完成事项
-* 剩余事项
-* 修改文件
-* Commit
-* 测试结果
-* Blocker
-* 风险
-* 下一步建议
+- 来源 Agent
+- 来源 Session
+- 目标 Agent，可选
+- 任务 ID
+- 工作摘要
+- 已完成事项
+- 剩余事项
+- 修改文件
+- Commit
+- 测试结果
+- Blocker
+- 风险
+- 下一步建议
 
 ---
 
@@ -671,9 +671,9 @@ cancelled
 
 可能原因：
 
-* 描述不完整
-* 依赖未确认
-* 尚未准备开始
+- 描述不完整
+- 依赖未确认
+- 尚未准备开始
 
 ---
 
@@ -701,11 +701,11 @@ cancelled
 
 开发工作已经完成，等待：
 
-* 人工检查
-* Agent Review
-* 测试
-* Merge
-* 验收
+- 人工检查
+- Agent Review
+- 测试
+- Merge
+- 验收
 
 ---
 
@@ -845,13 +845,13 @@ carryctx agent register \
 
 Agent 至少包含：
 
-* ID
-* Name
-* Provider
-* Role
-* Metadata
-* Created At
-* Last Active At
+- ID
+- Name
+- Provider
+- Role
+- Metadata
+- Created At
+- Last Active At
 
 ---
 
@@ -915,13 +915,13 @@ carryctx session start \
 
 启动 Session 时，CarryCtx 应自动采集：
 
-* 当前目录
-* 当前 worktree
-* 当前 branch
-* 当前 HEAD
-* 当前 Agent
-* 当前 Task
-* 启动时间
+- 当前目录
+- 当前 worktree
+- 当前 branch
+- 当前 HEAD
+- 当前 Agent
+- 当前 Task
+- 启动时间
 
 ---
 
@@ -935,9 +935,9 @@ carryctx session start \
 
 如果当前 Agent 存在未结束 Session，CarryCtx 应提示：
 
-* 恢复已有 Session
-* 结束已有 Session
-* 创建新 Session
+- 恢复已有 Session
+- 结束已有 Session
+- 创建新 Session
 
 ---
 
@@ -992,17 +992,17 @@ carryctx task create \
 
 Task 应支持以下核心字段：
 
-* ID
-* Title
-* Description
-* Status
-* Priority
-* Owner Agent
-* Parent Task
-* Created At
-* Updated At
-* Started At
-* Completed At
+- ID
+- Title
+- Description
+- Status
+- Priority
+- Owner Agent
+- Parent Task
+- Created At
+- Updated At
+- Started At
+- Completed At
 
 ---
 
@@ -1060,12 +1060,12 @@ carryctx task claim CTX-0001
 
 接管任务时，CarryCtx 应检查：
 
-* 任务是否存在
-* 任务是否允许接管
-* 任务是否已被其他 Agent 接管
-* 必需依赖是否完成
-* 当前 Agent 是否存在
-* 当前 worktree 是否已有其他任务
+- 任务是否存在
+- 任务是否允许接管
+- 任务是否已被其他 Agent 接管
+- 必需依赖是否完成
+- 当前 Agent 是否存在
+- 当前 worktree 是否已有其他任务
 
 ---
 
@@ -1115,10 +1115,10 @@ CarryCtx 必须拒绝直接或间接循环依赖。
 
 `carryctx task show` 应显示：
 
-* Depends On
-* Blocking
-* 已完成依赖
-* 未完成依赖
+- Depends On
+- Blocking
+- 已完成依赖
+- 未完成依赖
 
 ---
 
@@ -1126,9 +1126,9 @@ CarryCtx 必须拒绝直接或间接循环依赖。
 
 `carryctx task list --ready` 仅返回：
 
-* 状态允许开始
-* 所有强依赖已完成
-* 当前未被其他 Agent 接管
+- 状态允许开始
+- 所有强依赖已完成
+- 当前未被其他 Agent 接管
 
 的任务。
 
@@ -1164,10 +1164,10 @@ carryctx worktree create CTX-0001
 
 创建 worktree 时应允许配置：
 
-* 目标路径
-* Branch 名称
-* Base Branch
-* Base Commit
+- 目标路径
+- Branch 名称
+- Base Branch
+- Base Commit
 
 ---
 
@@ -1197,14 +1197,14 @@ carryctx worktree list
 
 至少显示：
 
-* Task
-* Path
-* Branch
-* HEAD
-* Dirty
-* Agent
-* Session
-* Last Updated
+- Task
+- Path
+- Branch
+- HEAD
+- Dirty
+- Agent
+- Session
+- Last Updated
 
 ---
 
@@ -1212,10 +1212,10 @@ carryctx worktree list
 
 CarryCtx 应检测：
 
-* 数据库记录存在但目录已删除
-* Git worktree 存在但未被 CarryCtx 管理
-* Branch 被删除
-* Worktree HEAD 与记录不一致
+- 数据库记录存在但目录已删除
+- Git worktree 存在但未被 CarryCtx 管理
+- Branch 被删除
+- Worktree HEAD 与记录不一致
 
 这些检查由：
 
@@ -1274,11 +1274,11 @@ carryctx progress list
 
 Progress Item 应支持：
 
-* 排序
-* 完成
-* 重新打开
-* 删除
-* 编辑
+- 排序
+- 完成
+- 重新打开
+- 删除
+- 编辑
 
 示例：
 
@@ -1339,19 +1339,19 @@ carryctx checkpoint \
 
 创建 Checkpoint 时应自动采集：
 
-* Repository Root
-* Worktree Path
-* Branch
-* HEAD Commit
-* Dirty State
-* Modified Files
-* Staged Files
-* Untracked Files
-* Diff Statistics
-* Timestamp
-* Session
-* Agent
-* Task
+- Repository Root
+- Worktree Path
+- Branch
+- HEAD Commit
+- Dirty State
+- Modified Files
+- Staged Files
+- Untracked Files
+- Diff Statistics
+- Timestamp
+- Session
+- Agent
+- Task
 
 ---
 
@@ -1393,8 +1393,8 @@ CarryCtx 应按以下顺序确定当前 Task：
 1. 显式 `--task`
 2. 当前 Session 绑定 Task
 3. 当前 worktree 绑定 Task
-4. 当前 Agent 唯一活跃 Task
-5. 交互式选择
+4. 当前 Agent 恰好唯一的活跃 Task
+5. 如果当前 Agent 有多个活跃 Task，交互式选择
 
 ---
 
@@ -1404,44 +1404,44 @@ Resume 输出必须包含：
 
 ### 当前身份
 
-* Project
-* Agent
-* Session
-* Task
+- Project
+- Agent
+- Session
+- Task
 
 ### Git 状态
 
-* Worktree
-* Branch
-* HEAD
-* Dirty State
-* Modified Files 数量
-* Untracked Files 数量
+- Worktree
+- Branch
+- HEAD
+- Dirty State
+- Modified Files 数量
+- Untracked Files 数量
 
 ### 任务状态
 
-* Task Title
-* Status
-* Priority
-* Owner
-* 最新 Checkpoint
-* Completed Items
-* Remaining Items
-* Blockers
+- Task Title
+- Status
+- Priority
+- Owner
+- 最新 Checkpoint
+- Completed Items
+- Remaining Items
+- Blockers
 
 ### 关联状态
 
-* 未完成依赖
-* 最近完成依赖
-* 被当前任务阻塞的任务
-* 相关活跃任务
-* 潜在路径冲突
-* 最近相关决策
+- 未完成依赖
+- 最近完成依赖
+- 被当前任务阻塞的任务
+- 相关活跃任务
+- 潜在路径冲突
+- 最近相关决策
 
 ### 下一步
 
-* 上次记录的 Next Action
-* CarryCtx 根据状态生成的操作提示
+- 上次记录的 Next Action
+- CarryCtx 根据状态生成的操作提示
 
 ---
 
@@ -1557,18 +1557,18 @@ carryctx status
 
 默认状态输出应包含：
 
-* 项目名称
-* 当前 branch 和 worktree
-* 当前 Agent
-* 当前 Task
-* Active Sessions
-* Ready Tasks 数量
-* In Progress Tasks 数量
-* Blocked Tasks 数量
-* Review Tasks 数量
-* Completed Tasks 数量
-* 最近活动
-* 潜在冲突
+- 项目名称
+- 当前 branch 和 worktree
+- 当前 Agent
+- 当前 Task
+- Active Sessions
+- Ready Tasks 数量
+- In Progress Tasks 数量
+- Blocked Tasks 数量
+- Review Tasks 数量
+- Completed Tasks 数量
+- 最近活动
+- 潜在冲突
 
 ---
 
@@ -1619,11 +1619,11 @@ carryctx decision add \
 
 Decision 应支持关联：
 
-* Task
-* Path
-* Module
-* Agent
-* Session
+- Task
+- Path
+- Module
+- Agent
+- Session
 
 ---
 
@@ -1631,15 +1631,15 @@ Decision 应支持关联：
 
 Decision 至少包含：
 
-* Title
-* Context
-* Decision
-* Consequences
-* Rationale
-* Related Tasks
-* Related Paths
-* Created By
-* Created At
+- Title
+- Context
+- Decision
+- Consequences
+- Rationale
+- Related Tasks
+- Related Paths
+- Created By
+- Created At
 
 ---
 
@@ -1671,17 +1671,17 @@ carryctx handoff create
 
 CLI 应自动从 Task、Checkpoint 和 Git 获取：
 
-* 当前 Task
-* 当前 Agent
-* 当前 Session
-* Worktree
-* Branch
-* HEAD
-* Changed Files
-* 最新 Checkpoint
-* Remaining Work
-* Blocker
-* 验证结果
+- 当前 Task
+- 当前 Agent
+- 当前 Session
+- Worktree
+- Branch
+- HEAD
+- Changed Files
+- 最新 Checkpoint
+- Remaining Work
+- Blocker
+- 验证结果
 
 ---
 
@@ -1689,11 +1689,11 @@ CLI 应自动从 Task、Checkpoint 和 Git 获取：
 
 Agent 应补充：
 
-* 交接摘要
-* 重要实现细节
-* 已知风险
-* 推荐下一步
-* 目标 Agent，可选
+- 交接摘要
+- 重要实现细节
+- 已知风险
+- 推荐下一步
+- 目标 Agent，可选
 
 ---
 
@@ -1725,10 +1725,10 @@ carryctx task scope add CTX-0001 "packages/auth/**"
 
 路径范围第一阶段主要用于：
 
-* 上下文相关性计算
-* 潜在冲突提示
-* 相关 Decision 过滤
-* 相关 Task 查询
+- 上下文相关性计算
+- 潜在冲突提示
+- 相关 Decision 过滤
+- 相关 Task 查询
 
 ---
 
@@ -1764,14 +1764,14 @@ CarryCtx 提示冲突，但不强制禁止文件修改。
 
 Event 至少包含：
 
-* ID
-* Event Type
-* Actor
-* Agent
-* Session
-* Task
-* Payload
-* Created At
+- ID
+- Event Type
+- Actor
+- Agent
+- Session
+- Task
+- Payload
+- Created At
 
 ---
 
@@ -1792,6 +1792,11 @@ carryctx event list --agent claude-auth
 carryctx event list --since 24h
 ```
 
+Public contract: transition writes use the canonical event types `task.completed`,
+`task.released`, and `task.cancelled`. Event reads remain compatible with historical
+`task.completeed`, `task.releaseed`, and `task.canceled` rows; these append-only
+audit records must not be rewritten.
+
 ---
 
 # 11.16 Doctor 与状态修复
@@ -1810,18 +1815,18 @@ carryctx doctor
 
 Doctor 至少检查：
 
-* 当前目录是否位于 Git 仓库
-* CarryCtx 是否已初始化
-* 配置文件是否有效
-* 数据库是否可读取
-* Schema 是否匹配
-* Git common directory 是否可访问
-* Worktree 记录是否有效
-* Branch 是否存在
-* Session 是否长期未更新
-* Task Owner 是否有效
-* Dependency 是否循环
-* Checkpoint Git 状态是否可解析
+- 当前目录是否位于 Git 仓库
+- CarryCtx 是否已初始化
+- 配置文件是否有效
+- 数据库是否可读取
+- Schema 是否匹配
+- Git common directory 是否可访问
+- Worktree 记录是否有效
+- Branch 是否存在
+- Session 是否长期未更新
+- Task Owner 是否有效
+- Dependency 是否循环
+- Checkpoint Git 状态是否可解析
 
 ---
 
@@ -1939,12 +1944,12 @@ carryctx
 
 默认输出应：
 
-* 简洁
-* 层次明确
-* 不输出无关字段
-* 支持终端颜色
-* 在非 TTY 环境禁用颜色
-* 错误信息包含解决建议
+- 简洁
+- 层次明确
+- 不输出无关字段
+- 支持终端颜色
+- 在非 TTY 环境禁用颜色
+- 错误信息包含解决建议
 
 ---
 
@@ -1960,9 +1965,13 @@ carryctx
 
 ```json
 {
-  "schemaVersion": 1,
+  "schema_version": 1,
+  "command": "task.list",
   "success": true,
-  "data": {}
+  "data": {},
+  "meta": {
+    "timestamp": "2026-07-22T18:30:00Z"
+  }
 }
 ```
 
@@ -1970,7 +1979,8 @@ carryctx
 
 ```json
 {
-  "schemaVersion": 1,
+  "schema_version": 1,
+  "command": "task.claim",
   "success": false,
   "error": {
     "code": "TASK_ALREADY_CLAIMED",
@@ -2040,11 +2050,11 @@ stale_after = "2h"
 
 原因：
 
-* 多个 worktree 共享
-* 不污染业务代码目录
-* 不参与 branch merge
-* 查询效率高
-* 支持事务
+- 多个 worktree 共享
+- 不污染业务代码目录
+- 不参与 branch merge
+- 查询效率高
+- 支持事务
 
 ---
 
@@ -2155,10 +2165,10 @@ CarryCtx 生成上下文时，应使用确定性规则计算相关信息。
 
 默认不包含：
 
-* 已完成很久且无依赖关系的任务
-* 与当前路径无关的 Checkpoint
-* 全部历史 Session
-* 所有 Agent 的完整事件记录
+- 已完成很久且无依赖关系的任务
+- 与当前路径无关的 Checkpoint
+- 全部历史 Session
+- 所有 Agent 的完整事件记录
 
 ---
 
@@ -2203,12 +2213,12 @@ skills/
 
 Agent 工作期间应：
 
-* 在完成重要阶段后创建 Checkpoint
-* 发现新工作时添加 Progress Todo
-* 完成工作后更新 Progress
-* 遇到阻塞时记录 Blocker
-* 作出重要架构决策时记录 Decision
-* 不将聊天上下文视为唯一状态来源
+- 在完成重要阶段后创建 Checkpoint
+- 发现新工作时添加 Progress Todo
+- 完成工作后更新 Progress
+- 遇到阻塞时记录 Blocker
+- 作出重要架构决策时记录 Decision
+- 不将聊天上下文视为唯一状态来源
 
 ---
 
@@ -2229,11 +2239,11 @@ Agent 暂停或关闭窗口前应：
 
 Skill 不能：
 
-* 直接修改 SQLite
-* 直接伪造 CarryCtx 状态文件
-* 通过编辑生成文档替代 CLI
-* 在任务完成前自动标记 completed
-* 忽略 Git 工作区未提交状态
+- 直接修改 SQLite
+- 直接伪造 CarryCtx 状态文件
+- 通过编辑生成文档替代 CLI
+- 在任务完成前自动标记 completed
+- 忽略 Git 工作区未提交状态
 
 ---
 
@@ -2418,8 +2428,8 @@ CarryCtx 必须能够识别 stale Session。
 
 第一阶段优先支持：
 
-* Linux
-* macOS
+- Linux
+- macOS
 
 ## NFR-PORT-002
 
@@ -2441,12 +2451,12 @@ CarryCtx 默认不访问网络。
 
 CarryCtx 默认不上传：
 
-* 代码
-* Git Diff
-* Task
-* Checkpoint
-* Agent 信息
-* 项目路径
+- 代码
+- Git Diff
+- Task
+- Checkpoint
+- Agent 信息
+- 项目路径
 
 ## NFR-PRIV-003
 
@@ -2572,12 +2582,12 @@ git diff
 
 SQLite Driver 应支持：
 
-* Transaction
-* WAL
-* Migration
-* Prepared Statement
-* Foreign Key
-* Backup
+- Transaction
+- WAL
+- Migration
+- Prepared Statement
+- Foreign Key
+- Backup
 
 v0.1 固定使用 Bun 内置的：
 
@@ -2712,11 +2722,11 @@ carryctx resume
 
 应恢复：
 
-* 当前 Task
-* 最新 Checkpoint
-* 已完成事项
-* 剩余事项
-* 当前 Git 状态
+- 当前 Task
+- 最新 Checkpoint
+- 已完成事项
+- 剩余事项
+- 当前 Git 状态
 
 ---
 
@@ -2779,36 +2789,36 @@ carryctx context --json
 
 ## 阶段一：基础设施
 
-* npm 工程
-* CLI Framework
-* 配置加载
-* Git 仓库发现
-* Git common directory
-* SQLite
-* Migration
-* Error Model
-* JSON 输出
+- npm 工程
+- CLI Framework
+- 配置加载
+- Git 仓库发现
+- Git common directory
+- SQLite
+- Migration
+- Error Model
+- JSON 输出
 
 ---
 
 ## 阶段二：Task 与 Session
 
-* Agent
-* Session
-* Task
-* Task Dependency
-* Progress Item
-* Event Log
+- Agent
+- Session
+- Task
+- Task Dependency
+- Progress Item
+- Event Log
 
 ---
 
 ## 阶段三：连续性核心
 
-* Checkpoint
-* Resume
-* Context
-* Status
-* Git 状态采集
+- Checkpoint
+- Resume
+- Context
+- Status
+- Git 状态采集
 
 这是 CarryCtx 最关键的阶段。
 
@@ -2816,21 +2826,21 @@ carryctx context --json
 
 ## 阶段四：Worktree 与协作
 
-* Worktree bind/create
-* Handoff
-* Decision
-* Path Scope
-* Conflict Warning
+- Worktree bind/create
+- Handoff
+- Decision
+- Path Scope
+- Conflict Warning
 
 ---
 
 ## 阶段五：Agent Skill
 
-* 通用 SKILL.md
-* Claude Code 使用说明
-* OpenCode 使用说明
-* Generic Shell Agent 使用说明
-* 测试跨 Session 恢复流程
+- 通用 SKILL.md
+- Claude Code 使用说明
+- OpenCode 使用说明
+- Generic Shell Agent 使用说明
+- 测试跨 Session 恢复流程
 
 ---
 
@@ -2856,12 +2866,12 @@ CarryCtx 第一阶段的成功不以功能数量衡量。
 
 CarryCtx 展示的：
 
-* Task
-* Worktree
-* Branch
-* Commit
-* Progress
-* Dependency
+- Task
+- Worktree
+- Branch
+- Commit
+- Progress
+- Dependency
 
 与实际项目状态一致。
 
@@ -2896,10 +2906,10 @@ carryctx context
 
 解决方向：
 
-* Skill 强制规定检查点流程
-* Session end 时提示
-* Git commit 后提示创建 Checkpoint
-* 支持从 Git Commit 生成 Checkpoint 草稿
+- Skill 强制规定检查点流程
+- Session end 时提示
+- Git commit 后提示创建 Checkpoint
+- 支持从 Git Commit 生成 Checkpoint 草稿
 
 ---
 
@@ -2909,10 +2919,10 @@ Checkpoint 创建后代码可能继续变化。
 
 解决方向：
 
-* 保存 Checkpoint HEAD
-* Resume 时比较当前 HEAD
-* 检测 dirty state 差异
-* 明确标记 Checkpoint 是否 stale
+- 保存 Checkpoint HEAD
+- Resume 时比较当前 HEAD
+- 检测 dirty state 差异
+- 明确标记 Checkpoint 是否 stale
 
 ---
 
@@ -2953,7 +2963,10 @@ SQLite 适合本地多 worktree，但不适合直接跨机器共享。
 3. SQLite Driver 使用 `bun:sqlite`。
 4. CLI Framework 使用 Citty。
 5. v0.1 实现 worktree create、Handoff、Decision、Scope、stale Session、迁移、备份和 Markdown Context。
-6. 默认一个 Agent 同时只能拥有一个 in-progress Task，可通过项目配置调整。
+6. 一个 Agent 可以同时拥有多个 active/in-progress Task。历史配置键
+   `task.single_active_task_per_agent` 保留为兼容性输入；它不是 enforced cap，
+   对 claim、start 或 assign 没有行为影响。现有配置无需立即迁移，但新配置不应
+   依赖该键来限制并发；如需容量策略，应由外部 commander 或执行 harness 决定。
 7. Session stale 默认时间为 `2h`。
 8. Checkpoint 原始记录不可编辑；修正通过追加 Correction 记录完成。
 9. v0.1 不导出可提交 JSONL，也不生成自动项目状态报告。
@@ -2987,12 +3000,12 @@ CarryCtx 是一个使用 TypeScript 开发并通过 npm 发布的本地 CLI。
 
 它为大型 Git 项目提供结构化的 Agent 工作状态，使多个 Coding Agent 以及同一 Agent 的不同窗口能够持续理解：
 
-* 自己正在处理什么
-* 上次完成了什么
-* 还有什么没有完成
-* 当前 Git 工作区是什么状态
-* 其他相关任务进展如何
-* 当前有哪些依赖和阻塞
-* 下一步应该继续做什么
+- 自己正在处理什么
+- 上次完成了什么
+- 还有什么没有完成
+- 当前 Git 工作区是什么状态
+- 其他相关任务进展如何
+- 当前有哪些依赖和阻塞
+- 下一步应该继续做什么
 
 CarryCtx 不负责运行或编排 Agent，而是作为所有 Coding Agent 共享的项目记忆和协作状态层。

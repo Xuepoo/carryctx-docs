@@ -45,20 +45,20 @@ The following decisions resolve contradictions in the draft documents and are no
 
 The CLI is one product but is delivered as small vertical units with executable exit tests:
 
-| Unit | Owns | Depends on | Exit evidence |
-| --- | --- | --- | --- |
-| A. Toolchain | Package, strict TypeScript, quality tools, help/version, output envelope | None | `carryctx --version`, format, typecheck, lint, and unit-test commands pass |
-| B. Project discovery | Git root/common-dir adapter, XDG paths, project resolution | A | Temporary normal and linked worktrees resolve the same common directory |
-| C. Configuration | TOML parsing, strict schema, merge/source tracking, config queries and mutations | A, B | Precedence, unknown-key, source, and atomic-write tests pass |
-| D. State store | SQLite connection, project and registry schemas, migrations, backup primitives, Event store | A, B | Empty/open/reopen/migrate/rollback/foreign-key tests pass |
-| E. Initialization | `init`, project registration, `.carryctx` files, idempotency | B, C, D | AC-001 and repeated-init tests pass |
-| F. Agent and Task | Agent commands, Task state machine, dependencies, atomic claim | C, D, E | AC-002, AC-008, cycle, transition, and claim-race tests pass |
-| G. Progress | Progress lifecycle and Task projection | F | AC-003 and progress history tests pass |
-| H. Worktree and Session | Worktree bind/create/query and Session lifecycle/stale recovery | B, D, F | AC-009 and AC-012 pass |
-| I. Checkpoint | Git snapshot and checkpoint create/list/show/correct | G, H | AC-004 and immutable-correction tests pass |
-| J. Continuity views | Resume, Context, Status and all renderers | F, G, H, I | AC-005, AC-007, and AC-010 pass |
-| K. Collaboration | Scope/conflicts, Decision, Handoff and related projections | F, H, I | AC-006 and overlap/supersession tests pass |
-| L. Operations | Doctor, project backup/migrate/restore, bundled Skill operations | C through K | AC-011, doctor recovery, package smoke, and full CI pass |
+| Unit                    | Owns                                                                                        | Depends on  | Exit evidence                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| A. Toolchain            | Package, strict TypeScript, quality tools, help/version, output envelope                    | None        | `carryctx --version`, format, typecheck, lint, and unit-test commands pass |
+| B. Project discovery    | Git root/common-dir adapter, XDG paths, project resolution                                  | A           | Temporary normal and linked worktrees resolve the same common directory    |
+| C. Configuration        | TOML parsing, strict schema, merge/source tracking, config queries and mutations            | A, B        | Precedence, unknown-key, source, and atomic-write tests pass               |
+| D. State store          | SQLite connection, project and registry schemas, migrations, backup primitives, Event store | A, B        | Empty/open/reopen/migrate/rollback/foreign-key tests pass                  |
+| E. Initialization       | `init`, project registration, `.carryctx` files, idempotency                                | B, C, D     | AC-001 and repeated-init tests pass                                        |
+| F. Agent and Task       | Agent commands, Task state machine, dependencies, atomic claim                              | C, D, E     | AC-002, AC-008, cycle, transition, and claim-race tests pass               |
+| G. Progress             | Progress lifecycle and Task projection                                                      | F           | AC-003 and progress history tests pass                                     |
+| H. Worktree and Session | Worktree bind/create/query and Session lifecycle/stale recovery                             | B, D, F     | AC-009 and AC-012 pass                                                     |
+| I. Checkpoint           | Git snapshot and checkpoint create/list/show/correct                                        | G, H        | AC-004 and immutable-correction tests pass                                 |
+| J. Continuity views     | Resume, Context, Status and all renderers                                                   | F, G, H, I  | AC-005, AC-007, and AC-010 pass                                            |
+| K. Collaboration        | Scope/conflicts, Decision, Handoff and related projections                                  | F, H, I     | AC-006 and overlap/supersession tests pass                                 |
+| L. Operations           | Doctor, project backup/migrate/restore, bundled Skill operations                            | C through K | AC-011, doctor recovery, package smoke, and full CI pass                   |
 
 Each unit receives a separate task group in the implementation plan. A later unit consumes only exported domain types, repository contracts, and application results from earlier units; it does not reach into their adapter internals.
 
@@ -126,20 +126,78 @@ interface UnitOfWork {
   run<T>(mode: "deferred" | "immediate", work: (repos: Repositories) => T): T;
 }
 
-interface ProjectRepository { get(): Project; updateSchemaVersion(version: number): void; }
-interface AgentRepository { create(input: NewAgent): Agent; find(ref: AgentRef): Agent | undefined; list(filter: AgentFilter): Agent[]; }
-interface TaskRepository { create(input: NewTask): Task; transition(input: TaskTransition): Task; claim(input: ClaimTask): ClaimResult; list(filter: TaskFilter): Task[]; }
-interface DependencyRepository { add(edge: Dependency): void; remove(edge: Dependency): void; wouldCreateCycle(edge: Dependency): boolean; }
-interface ProgressRepository { create(input: NewProgressItem): ProgressItem; transition(input: ProgressTransition): ProgressItem; list(taskId: string): ProgressItem[]; }
-interface SessionRepository { create(input: NewSession): Session; transition(input: SessionTransition): Session; findCurrent(input: SessionResolution): Session[]; touch(id: string, at: string): void; }
-interface WorktreeRepository { bind(input: WorktreeBinding): Worktree; list(): Worktree[]; }
-interface CheckpointRepository { create(input: NewCheckpoint): Checkpoint; addCorrection(input: CheckpointCorrection): void; list(taskId: string): Checkpoint[]; }
-interface CollaborationRepository { addScope(input: TaskScope): void; createDecision(input: NewDecision): Decision; createHandoff(input: NewHandoff): Handoff; appendHandoffTransition(input: HandoffTransition): void; }
-interface EventRepository { append(event: NewEvent): Event; list(filter: EventFilter): Event[]; }
-interface OperationRepository { prepare(input: NewOperation): Operation; complete(id: string): void; fail(id: string, code: string): void; listRecoverable(): Operation[]; }
-interface GitService { discover(path: string): GitProject; capture(path: string): GitSnapshot; listWorktrees(project: GitProject): GitWorktree[]; createWorktree(input: CreateGitWorktree): GitWorktree; }
-interface ConfigService { load(input: ConfigLoadInput): EffectiveConfig; planMutation(input: ConfigMutation): FileMutation; applyAtomic(mutation: FileMutation): void; }
-interface BackupService { create(input: BackupInput): Backup; verify(path: string): BackupVerification; restore(input: RestoreInput): void; }
+interface ProjectRepository {
+  get(): Project;
+  updateSchemaVersion(version: number): void;
+}
+interface AgentRepository {
+  create(input: NewAgent): Agent;
+  find(ref: AgentRef): Agent | undefined;
+  list(filter: AgentFilter): Agent[];
+}
+interface TaskRepository {
+  create(input: NewTask): Task;
+  transition(input: TaskTransition): Task;
+  claim(input: ClaimTask): ClaimResult;
+  list(filter: TaskFilter): Task[];
+}
+interface DependencyRepository {
+  add(edge: Dependency): void;
+  remove(edge: Dependency): void;
+  wouldCreateCycle(edge: Dependency): boolean;
+}
+interface ProgressRepository {
+  create(input: NewProgressItem): ProgressItem;
+  transition(input: ProgressTransition): ProgressItem;
+  list(taskId: string): ProgressItem[];
+}
+interface SessionRepository {
+  create(input: NewSession): Session;
+  transition(input: SessionTransition): Session;
+  findCurrent(input: SessionResolution): Session[];
+  touch(id: string, at: string): void;
+}
+interface WorktreeRepository {
+  bind(input: WorktreeBinding): Worktree;
+  list(): Worktree[];
+}
+interface CheckpointRepository {
+  create(input: NewCheckpoint): Checkpoint;
+  addCorrection(input: CheckpointCorrection): void;
+  list(taskId: string): Checkpoint[];
+}
+interface CollaborationRepository {
+  addScope(input: TaskScope): void;
+  createDecision(input: NewDecision): Decision;
+  createHandoff(input: NewHandoff): Handoff;
+  appendHandoffTransition(input: HandoffTransition): void;
+}
+interface EventRepository {
+  append(event: NewEvent): Event;
+  list(filter: EventFilter): Event[];
+}
+interface OperationRepository {
+  prepare(input: NewOperation): Operation;
+  complete(id: string): void;
+  fail(id: string, code: string): void;
+  listRecoverable(): Operation[];
+}
+interface GitService {
+  discover(path: string): GitProject;
+  capture(path: string): GitSnapshot;
+  listWorktrees(project: GitProject): GitWorktree[];
+  createWorktree(input: CreateGitWorktree): GitWorktree;
+}
+interface ConfigService {
+  load(input: ConfigLoadInput): EffectiveConfig;
+  planMutation(input: ConfigMutation): FileMutation;
+  applyAtomic(mutation: FileMutation): void;
+}
+interface BackupService {
+  create(input: BackupInput): Backup;
+  verify(path: string): BackupVerification;
+  restore(input: RestoreInput): void;
+}
 ```
 
 Application use cases own composition and transaction boundaries. Repository implementations own SQL mapping. Services own external effects. Commands own parsing and rendering only.
@@ -231,17 +289,17 @@ States are `planned`, `ready`, `in_progress`, `blocked`, `review`, `completed`, 
 
 The closed transition matrix is:
 
-| Command | Allowed source | Target | Ownership rule |
-| --- | --- | --- | --- |
-| `task claim` | `ready` | `in_progress` | Must be unowned; assigns current/explicit active Agent |
-| `task start` | `ready` | `in_progress` | Requires existing current/explicit owner; otherwise use claim |
-| `task release` | `in_progress`, `blocked` | `ready` if dependencies complete, otherwise `planned` | Current owner or explicit override; clears owner and requires no active Session |
-| `task block` | `ready`, `in_progress`, `review` | `blocked` | Preserves owner and requires a non-empty reason |
-| `task unblock` | `planned`, `blocked` | `in_progress` when owned, otherwise `ready`; incomplete strong dependencies reject the transition | Preserves owner |
-| `task review` | `in_progress` | `review` | Preserves owner |
-| `task complete` | `review`, `in_progress` | `completed` | Preserves final owner; open work warns or fails under strict completion |
-| `task cancel` | Any nonterminal state | `cancelled` | Clears owner and requires a non-empty reason |
-| `task reopen` | `completed`, `cancelled` | `ready` if dependencies complete, otherwise `planned` | Clears owner |
+| Command         | Allowed source                   | Target                                                                                            | Ownership rule                                                                  |
+| --------------- | -------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `task claim`    | `ready`                          | `in_progress`                                                                                     | Must be unowned; assigns current/explicit active Agent                          |
+| `task start`    | `ready`                          | `in_progress`                                                                                     | Requires existing current/explicit owner; otherwise use claim                   |
+| `task release`  | `in_progress`, `blocked`         | `ready` if dependencies complete, otherwise `planned`                                             | Current owner or explicit override; clears owner and requires no active Session |
+| `task block`    | `ready`, `in_progress`, `review` | `blocked`                                                                                         | Preserves owner and requires a non-empty reason                                 |
+| `task unblock`  | `planned`, `blocked`             | `in_progress` when owned, otherwise `ready`; incomplete strong dependencies reject the transition | Preserves owner                                                                 |
+| `task review`   | `in_progress`                    | `review`                                                                                          | Preserves owner                                                                 |
+| `task complete` | `review`, `in_progress`          | `completed`                                                                                       | Preserves final owner; open work warns or fails under strict completion         |
+| `task cancel`   | Any nonterminal state            | `cancelled`                                                                                       | Clears owner and requires a non-empty reason                                    |
+| `task reopen`   | `completed`, `cancelled`         | `ready` if dependencies complete, otherwise `planned`                                             | Clears owner                                                                    |
 
 Creation defaults to `ready` when all supplied strong dependencies are complete and to `planned` when any are incomplete. Explicit `--status planned` remains available for intentionally unready work; explicit `--status ready` is accepted only when strong dependencies are complete. Adding an incomplete strong dependency to a ready unowned Task moves it to `planned`. `task unblock` accepts `planned` as well as `blocked` and moves a dependency-ready unowned Task to `ready`; this supplies the explicit `planned → ready` transition. The default create-then-claim workflow in AC-002 therefore succeeds.
 
@@ -271,29 +329,29 @@ Decision base rows are immutable. Supersession is stored in `decision_supersessi
 
 Each project database contains these tables:
 
-| Table | Responsibility |
-| --- | --- |
-| `schema_migrations` | Applied migration version, checksum, and timestamp |
-| `projects` | Project identity, repository/common paths, branches, and schema metadata |
-| `sequences` | Atomic display-ID counters scoped by project and entity kind |
-| `operations` | Recoverable multi-resource operation intent, state, and failure code |
-| `agents` | Stable agent identity, provider, role, metadata, and active state |
-| `tasks` | Task fields, status, priority, owner, parent, and lifecycle timestamps |
-| `task_dependencies` | Directed strong or informational dependency edges |
-| `task_scopes` | Repository-relative glob patterns for relevance and conflict warnings |
-| `progress_items` | Ordered structured progress attached to a Task and source Session |
-| `worktrees` | Git worktree path, branch, HEAD, bound Task, and observation time |
-| `sessions` | Agent work session, Task/worktree binding, state, activity, and summary |
-| `checkpoints` | Immutable semantic summary and captured Git snapshot |
-| `checkpoint_corrections` | Immutable semantic corrections applied by Resume |
-| `decisions` | Immutable technical decision content and supersession relation |
-| `decision_tasks` | Many-to-many Decision to Task relation |
-| `decision_paths` | Decision to repository-relative path relation |
-| `decision_modules` | Decision to logical module-name relation |
-| `decision_supersessions` | Append-only old-to-new Decision relation |
-| `handoffs` | Immutable transfer summary, source/target, status, and Git snapshot |
-| `handoff_transitions` | Append-only accept/reject/close status history |
-| `events` | Append-only audit record with actor relations and JSON payload |
+| Table                    | Responsibility                                                           |
+| ------------------------ | ------------------------------------------------------------------------ |
+| `schema_migrations`      | Applied migration version, checksum, and timestamp                       |
+| `projects`               | Project identity, repository/common paths, branches, and schema metadata |
+| `sequences`              | Atomic display-ID counters scoped by project and entity kind             |
+| `operations`             | Recoverable multi-resource operation intent, state, and failure code     |
+| `agents`                 | Stable agent identity, provider, role, metadata, and active state        |
+| `tasks`                  | Task fields, status, priority, owner, parent, and lifecycle timestamps   |
+| `task_dependencies`      | Directed strong or informational dependency edges                        |
+| `task_scopes`            | Repository-relative glob patterns for relevance and conflict warnings    |
+| `progress_items`         | Ordered structured progress attached to a Task and source Session        |
+| `worktrees`              | Git worktree path, branch, HEAD, bound Task, and observation time        |
+| `sessions`               | Agent work session, Task/worktree binding, state, activity, and summary  |
+| `checkpoints`            | Immutable semantic summary and captured Git snapshot                     |
+| `checkpoint_corrections` | Immutable semantic corrections applied by Resume                         |
+| `decisions`              | Immutable technical decision content and supersession relation           |
+| `decision_tasks`         | Many-to-many Decision to Task relation                                   |
+| `decision_paths`         | Decision to repository-relative path relation                            |
+| `decision_modules`       | Decision to logical module-name relation                                 |
+| `decision_supersessions` | Append-only old-to-new Decision relation                                 |
+| `handoffs`               | Immutable transfer summary, source/target, status, and Git snapshot      |
+| `handoff_transitions`    | Append-only accept/reject/close status history                           |
+| `events`                 | Append-only audit record with actor relations and JSON payload           |
 
 Foreign keys enforce ownership and lifecycle relations. Check constraints enforce closed status sets and non-empty required content. Unique indexes protect Agent names, display IDs, dependency edges, task scopes, and active worktree bindings. Query indexes cover task status/owner, session state/activity, progress task/order, checkpoint task/time, event relations/time, and handoff status/target.
 
@@ -357,13 +415,12 @@ All successful JSON output has this envelope:
 
 ```json
 {
-  "schemaVersion": 1,
+  "schema_version": 1,
   "command": "task.list",
   "success": true,
   "data": {},
   "warnings": [],
   "meta": {
-    "projectId": "carryctx",
     "timestamp": "2026-07-22T18:30:00Z"
   }
 }
@@ -394,26 +451,26 @@ Human output remains concise and action-oriented. Snapshot normalization replace
 
 The following commands are required in v0.1; no unlisted subcommand is implied:
 
-| Command | Included subcommands or forms |
-| --- | --- |
-| Root | `--help`, `--version` |
-| `init` | default create/reconcile form |
-| `status` | default, `--mine`, `--all` |
-| `resume` | default and `--start-session` |
-| `context` | compact/full text, JSON, and Markdown |
-| `checkpoint` | create, `list`, `show`, `correct` |
-| `project` | `show`, `list`, `register`, `unregister`, `migrate`, `backup`, `restore` |
-| `config` | `list`, `get`, `set`, `unset`, `validate`, `sources`, `path` |
-| `agent` | `register`, `list`, `show`, `current`, `rename`, `deactivate` |
-| `session` | `start`, `list`, `show`, `current`, `pause`, `resume`, `end`, `abandon` |
-| `task` | `create`, `list`, `show`, `edit`, `claim`, `release`, `start`, `block`, `unblock`, `review`, `complete`, `cancel`, `reopen`, `depend`, `undepend`, `scope add/remove/list/conflicts` |
-| `progress` | `todo`, `done`, `block`, `risk`, `note`, `list`, `show`, `edit`, `complete`, `reopen`, `remove`, `reorder` |
-| `worktree` | `create`, `bind`, `list`, `show`, `status`, `unbind` |
-| `decision` | `add`, `list`, `show`, `search`, `supersede` |
-| `handoff` | `create`, `list`, `show`, `accept`, `reject`, `close` |
-| `event` | `list`, `show` |
-| `doctor` | inspect and `--fix` |
-| `skill` | `install`, `list`, `path`, `doctor` |
+| Command      | Included subcommands or forms                                                                                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Root         | `--help`, `--version`                                                                                                                                                                |
+| `init`       | default create/reconcile form                                                                                                                                                        |
+| `status`     | default, `--mine`, `--all`                                                                                                                                                           |
+| `resume`     | default and `--start-session`                                                                                                                                                        |
+| `context`    | compact/full text, JSON, and Markdown                                                                                                                                                |
+| `checkpoint` | create, `list`, `show`, `correct`                                                                                                                                                    |
+| `project`    | `show`, `list`, `register`, `unregister`, `migrate`, `backup`, `restore`                                                                                                             |
+| `config`     | `list`, `get`, `set`, `unset`, `validate`, `sources`, `path`                                                                                                                         |
+| `agent`      | `register`, `list`, `show`, `current`, `rename`, `deactivate`                                                                                                                        |
+| `session`    | `start`, `list`, `show`, `current`, `pause`, `resume`, `end`, `abandon`                                                                                                              |
+| `task`       | `create`, `list`, `show`, `edit`, `claim`, `release`, `start`, `block`, `unblock`, `review`, `complete`, `cancel`, `reopen`, `depend`, `undepend`, `scope add/remove/list/conflicts` |
+| `progress`   | `todo`, `done`, `block`, `risk`, `note`, `list`, `show`, `edit`, `complete`, `reopen`, `remove`, `reorder`                                                                           |
+| `worktree`   | `create`, `bind`, `list`, `show`, `status`, `unbind`                                                                                                                                 |
+| `decision`   | `add`, `list`, `show`, `search`, `supersede`                                                                                                                                         |
+| `handoff`    | `create`, `list`, `show`, `accept`, `reject`, `close`                                                                                                                                |
+| `event`      | `list`, `show`                                                                                                                                                                       |
+| `doctor`     | inspect and `--fix`                                                                                                                                                                  |
+| `skill`      | `install`, `list`, `path`, `doctor`                                                                                                                                                  |
 
 Deferred beyond v0.1 are `project export/import`, `worktree remove/prune`, `event tail`, `skill update/export`, shell completion, and every P2 feature. They may appear in future-facing documentation only when labeled deferred. In particular, no streaming JSON protocol is part of v0.1.
 
@@ -421,26 +478,26 @@ Deferred beyond v0.1 are `project export/import`, `worktree remove/prune`, `even
 
 All listed fields are required unless the schema explicitly marks the underlying concept nullable. Filters never alter the envelope shape.
 
-| Command family | Application result in `data` | Write Event types | Principal errors | Acceptance |
-| --- | --- | --- | --- | --- |
-| Root | `version: {name, version, runtime}` or help text outside JSON | None | `INVALID_ARGUMENTS` | Package smoke |
-| `init` | `project`, `paths`, `created[]`, `reconciled[]`, `operation` | `project.initialized`, `project.reconciled` | `PROJECT_NOT_FOUND`, `PROJECT_ALREADY_INITIALIZED`, `CONFIG_INVALID`, `GIT_ERROR`, `DATABASE_ERROR` | AC-001 |
-| `status` | `project`, `current`, `git`, `counts`, `sessions[]`, `tasks[]`, `activity[]`, `conflicts[]` | `session.stale` only when detected | Project/config/database resolution errors | AC-007, AC-010 |
-| `resume` | `project`, `agent`, `session`, `task`, `git`, `checkpoint`, `progress`, `dependencies`, `related`, `nextActions[]` | `session.started` only with `--start-session`; `session.stale` when detected | Agent/Task ambiguity, not-found, project errors | AC-005, AC-010 |
-| `context` | `mode`, `task`, `checkpoint`, `sections[]`, `generatedAt` | None | Task ambiguity/not-found, invalid duration/limit | AC-005, AC-010 |
-| `checkpoint` | Create/correct: `checkpoint`, `operation`; list: `checkpoints[]`; show: `checkpoint` | `checkpoint.created`, `checkpoint.corrected` | Session/Task not resolved, Git error, not found | AC-004 |
-| `project` | Singular: `project`; list: `projects[]`; backup/restore/migrate: `project`, `backup` or `migration`, `operation` | `project.registered`, `project.unregistered`, `project.migrated`, `project.backed_up`, `project.restored` | Migration required/unsupported, integrity, permission, not found | AC-001, AC-009 |
-| `config` | Get: `key`, `value`, `source`; list: `values`; sources: `sources[]`; mutation: `mutation`, `operation`; validate: `valid`, `issues[]`; path: `paths` | `config.changed` for project-visible changes | Invalid scope/key/value/TOML, permission | Configuration tests |
-| `agent` | Singular/mutation: `agent`, `operation`; list: `agents[]`; current: `agent` | `agent.registered`, `agent.renamed`, `agent.deactivated` | Already exists, not found, ambiguity, active ownership conflict | AC-002, AC-006 |
-| `session` | Singular/mutation: `session`, `operation`; list: `sessions[]`; current: `session` | `session.started`, `session.paused`, `session.resumed`, `session.ended`, `session.stale`, `session.abandoned` | Already active, ambiguity, invalid transition, checkpoint required | AC-005, AC-012 |
-| `task` | Singular/mutation: `task`, `dependencies`, `scopes`, `operation`; list: `tasks[]`; scope conflicts: `task`, `conflicts[]` | `task.created`, `task.updated`, `task.claimed`, `task.released`, `task.transitioned`, `task.dependency_added/removed`, `task.scope_added/removed` | Not found, already claimed, dependency cycle/incomplete, invalid transition, worktree conflict | AC-002, AC-008 |
-| `progress` | Singular/mutation: `item`, `operation`; list: `items[]` | `progress.created`, `progress.edited`, `progress.completed`, `progress.reopened`, `progress.removed`, `progress.reordered` | Task/Session not resolved, item not found, invalid transition/order | AC-003 |
-| `worktree` | Singular/mutation/status: `worktree`, `git`, `operation`; list: `worktrees[]` | `worktree.created`, `worktree.bound`, `worktree.unbound` | Git error, path exists/not found, task conflict, dirty preflight | AC-009 |
-| `decision` | Singular/mutation: `decision`, `operation`; list/search: `decisions[]` | `decision.created`, `decision.superseded` | Not found, invalid relation, already superseded | Collaboration tests |
-| `handoff` | Singular/mutation: `handoff`, `status`, `operation`; list: `handoffs[]` | `handoff.created`, `handoff.accepted`, `handoff.rejected`, `handoff.closed` | Not found, invalid transition/target, task claim conflict | AC-006 |
-| `event` | Show: `event`; list: `events[]`, `cursor` | None | Invalid filter/cursor, not found | Audit tests |
-| `doctor` | `checks[]`, `summary`, `operations[]`, optional `repairs[]` | `doctor.repaired` plus recovered domain Event | Confirmation required, unsafe/unsupported repair, project/database/Git errors | AC-012 |
-| `skill` | Install: `skill`, `paths`, `operation`; list: `skills[]`; path: `paths`; doctor: `checks[]` | `skill.installed` for project installs | Resource/target not found, permission, invalid bundled manifest | Package smoke |
+| Command family | Application result in `data`                                                                                                                         | Write Event types                                                                                                                                 | Principal errors                                                                                    | Acceptance          |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------- |
+| Root           | `version: {name, version, runtime}` or help text outside JSON                                                                                        | None                                                                                                                                              | `INVALID_ARGUMENTS`                                                                                 | Package smoke       |
+| `init`         | `project`, `paths`, `created[]`, `reconciled[]`, `operation`                                                                                         | `project.initialized`, `project.reconciled`                                                                                                       | `PROJECT_NOT_FOUND`, `PROJECT_ALREADY_INITIALIZED`, `CONFIG_INVALID`, `GIT_ERROR`, `DATABASE_ERROR` | AC-001              |
+| `status`       | `project`, `current`, `git`, `counts`, `sessions[]`, `tasks[]`, `activity[]`, `conflicts[]`                                                          | `session.stale` only when detected                                                                                                                | Project/config/database resolution errors                                                           | AC-007, AC-010      |
+| `resume`       | `project_id`, `current_session`, `current_task`, `latest_checkpoint`, `progress`, `recent_events`, `branch`, `head`                                  | `session.started` only with `--start-session`; `session.stale` when detected                                                                      | Agent/Task ambiguity, not-found, project errors                                                     | AC-005, AC-010      |
+| `context`      | `mode`, `task`, `checkpoint`, `sections[]`, `generatedAt`                                                                                            | None                                                                                                                                              | Task ambiguity/not-found, invalid duration/limit                                                    | AC-005, AC-010      |
+| `checkpoint`   | Create/correct: `checkpoint`, `operation`; list: `checkpoints[]`; show: `checkpoint`                                                                 | `checkpoint.created`, `checkpoint.corrected`                                                                                                      | Session/Task not resolved, Git error, not found                                                     | AC-004              |
+| `project`      | Singular: `project`; list: `projects[]`; backup/restore/migrate: `project`, `backup` or `migration`, `operation`                                     | `project.registered`, `project.unregistered`, `project.migrated`, `project.backed_up`, `project.restored`                                         | Migration required/unsupported, integrity, permission, not found                                    | AC-001, AC-009      |
+| `config`       | Get: `key`, `value`, `source`; list: `values`; sources: `sources[]`; mutation: `mutation`, `operation`; validate: `valid`, `issues[]`; path: `paths` | `config.changed` for project-visible changes                                                                                                      | Invalid scope/key/value/TOML, permission                                                            | Configuration tests |
+| `agent`        | Singular/mutation: `agent`, `operation`; list: `agents[]`; current: `agent`                                                                          | `agent.registered`, `agent.renamed`, `agent.deactivated`                                                                                          | Already exists, not found, ambiguity, active ownership conflict                                     | AC-002, AC-006      |
+| `session`      | Singular/mutation: `session`, `operation`; list: `sessions[]`; current: `session`                                                                    | `session.started`, `session.paused`, `session.resumed`, `session.ended`, `session.stale`, `session.abandoned`                                     | Already active, ambiguity, invalid transition, checkpoint required                                  | AC-005, AC-012      |
+| `task`         | Singular/mutation: `task`, `dependencies`, `scopes`, `operation`; list: `tasks[]`; scope conflicts: `task`, `conflicts[]`                            | `task.created`, `task.updated`, `task.claimed`, `task.released`, `task.transitioned`, `task.dependency_added/removed`, `task.scope_added/removed` | Not found, already claimed, dependency cycle/incomplete, invalid transition, worktree conflict      | AC-002, AC-008      |
+| `progress`     | Singular/mutation: `item`, `operation`; list: `items[]`                                                                                              | `progress.created`, `progress.edited`, `progress.completed`, `progress.reopened`, `progress.removed`, `progress.reordered`                        | Task/Session not resolved, item not found, invalid transition/order                                 | AC-003              |
+| `worktree`     | Singular/mutation/status: `worktree`, `git`, `operation`; list: `worktrees[]`                                                                        | `worktree.created`, `worktree.bound`, `worktree.unbound`                                                                                          | Git error, path exists/not found, task conflict, dirty preflight                                    | AC-009              |
+| `decision`     | Singular/mutation: `decision`, `operation`; list/search: `decisions[]`                                                                               | `decision.created`, `decision.superseded`                                                                                                         | Not found, invalid relation, already superseded                                                     | Collaboration tests |
+| `handoff`      | Singular/mutation: `handoff`, `status`, `operation`; list: `handoffs[]`                                                                              | `handoff.created`, `handoff.accepted`, `handoff.rejected`, `handoff.closed`                                                                       | Not found, invalid transition/target, task claim conflict                                           | AC-006              |
+| `event`        | Show: `event`; list: `events[]`, `cursor`                                                                                                            | None                                                                                                                                              | Invalid filter/cursor, not found                                                                    | Audit tests         |
+| `doctor`       | `checks[]`, `summary`, `operations[]`, optional `repairs[]`                                                                                          | `doctor.repaired` plus recovered domain Event                                                                                                     | Confirmation required, unsafe/unsupported repair, project/database/Git errors                       | AC-012              |
+| `skill`        | Install: `skill`, `paths`, `operation`; list: `skills[]`; path: `paths`; doctor: `checks[]`                                                          | `skill.installed` for project installs                                                                                                            | Resource/target not found, permission, invalid bundled manifest                                     | Package smoke       |
 
 Error envelope `details` is validated per error code. Known state conflicts use exit code 3, Git failures 4, SQLite failures 5, configuration failures 6, missing resources 7, input/schema validation 8, permission/scope failures 9, deferred operations 10, migration requirements 11, and interrupts 12.
 
