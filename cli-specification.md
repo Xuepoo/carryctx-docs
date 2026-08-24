@@ -1058,6 +1058,10 @@ carryctx event list \
   `VALIDATION_FAILED`（错误信封走 stderr），不会静默忽略。
 - 兼容性：不传 `--cursor` 时首页行为与旧版一致，仅 `next_cursor` 从固定
   `null` 变为在存在后续页时填充真实 token。
+- 引用解析失败即大声报错：`--agent` 指向不存在或已 deactivated 的 agent 时，
+  分别返回 `RESOURCE_NOT_FOUND` / `PERMISSION_SCOPE`（"is deactivated and
+  cannot act"，错误信封走 stderr），与 `search --assignee` 完全一致；不会
+  静默放宽为全量事件流。`--task` 同样大声报错。
 
 Event 不提供普通删除命令。
 
