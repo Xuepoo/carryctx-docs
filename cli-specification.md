@@ -301,6 +301,12 @@ carryctx status
 --since <duration>
 ```
 
+任务计数与上限（0.6.0 起）：JSON 输出在既有键之外新增 `totalTasks`——项目任务
+总数由精确 COUNT(*) 查询得出，不受 `task list` 默认上限（200）影响；`tasks`
+数组仍是有上限的一页数据。Markdown 报告的 Total Tasks 行同样使用该精确计数。
+`carryctx doctor` 的 orphaned / in-progress 诊断也改为全量查询统计，超过上限
+的任务同样计入，不再因分页截断而漏报。
+
 默认输出：
 
 - Project
