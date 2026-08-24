@@ -1032,6 +1032,7 @@ carryctx event show <event-id>
 --since
 --until
 --limit
+--cursor <token>
 ```
 
 示例：
@@ -1040,7 +1041,23 @@ carryctx event show <event-id>
 carryctx event list \
   --task CTX-0001 \
   --since 24h
+
+carryctx event list \
+  --limit 100 \
+  --cursor "2026-08-24T10:00:00+00:00|01JABCDEF"
 ```
+
+分页与默认上限（0.6.0 起）：
+
+- `--limit` 省略时每页最多返回 200 条事件。
+- 事件列表按 `(occurred_at, id)` keyset 排序，保证同一时间戳批次不重复、
+  不遗漏。
+- `next_cursor`：当返回的是一整页（其后可能还有数据）时，输出 opaque 游标
+  token（`(occurred_at, id)` 编码）。把它作为 `--cursor <token>` 原样传回即
+  可获取下一页；游标严格按元组推进，翻页不重复、不遗漏。非法游标返回
+  `VALIDATION_FAILED`（错误信封走 stderr），不会静默忽略。
+- 兼容性：不传 `--cursor` 时首页行为与旧版一致，仅 `next_cursor` 从固定
+  `null` 变为在存在后续页时填充真实 token。
 
 Event 不提供普通删除命令。
 
