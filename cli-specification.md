@@ -298,8 +298,12 @@ carryctx status
 --sessions
 --tasks
 --worktrees
---since <duration>
 ```
+
+`--worktrees` adds a Git worktrees table to the Markdown report. JSON output
+always embeds the full `worktrees` array regardless of this flag. The former
+`--since <duration>` filter was removed in 0.6.0: it had no effect on the
+report and silently ignored its argument.
 
 任务计数与上限（0.6.0 起）：JSON 输出在既有键之外新增 `totalTasks`——项目任务
 总数由精确 COUNT(*) 查询得出，不受 `task list` 默认上限（200）影响；`tasks`
@@ -533,17 +537,28 @@ carryctx config path
 
 ```bash
 carryctx config get session.stale_after
-carryctx config set --project session.stale_after 4h
+carryctx config set --cfg-project task.list_limit 250
 carryctx config set --global output.color auto
 carryctx config sources
 ```
 
-`config set` 和 `config unset` 必须且只能显式指定一个写入作用域：
+0.6.0 起 `config get` / `config set` / `config unset` 基于 `toml_edit`
+实现类型化往返（typed round-trip）：
+
+- 点号 key 按段定位到正确的 TOML table（`task.list_limit` 写入
+  `[task]` 表），不再追加到文件末尾或落入错误的最后一个表。
+- 值按 TOML 类型解析并写回：`true`/`250` 写为真正的 bool/integer，
+  不再一律字符串化；写入前先序列化-重解析校验，失败即报错不落盘。
+- `config get` 查询类型化配置树：未知 key 返回 `value: null` 且
+  退出码 0；不再做行前缀文本匹配。
+- 缺少写入作用域时返回明确的错误与建议（必须且只能指定一个）。
+- `--local` 被显式拒绝，返回 `UNSUPPORTED_OPERATION`：配置加载器
+  尚未读取 `.carryctx/local.toml`。
 
 ```text
 --global
---project
---local
+--cfg-project
+--local        # 仅接受为显式拒绝的 UNSUPPORTED_OPERATION
 ```
 
 v0.1 不提供隐式默认写入作用域。
@@ -572,6 +587,17 @@ carryctx agent register --name worker-1 --kind subagent --role implementation
 `null`, preserving pre-Team behavior. Registering a duplicate agent name is
 rejected; it does not create a second Agent. `role` is descriptive metadata
 and does not grant permissions or select execution policy.
+
+0.6.0 起 Agent 身份完整性约束：
+
+- 名称唯一性由迁移 `0015_agent_name_unique` 的
+  `UNIQUE(project_id, name)` 索引强制；重复注册返回 `STATE_CONFLICT`
+  并给出可操作建议（改名、rename 或 reactivate）。
+- `agent deactivate` 的状态写入与其审计事件在同一事务中提交并持久化；
+  deactivated 状态在 `agent show` 与所有解析路径中立即可见。
+- Deactivated agent 无法在任何位置被解析或行动：任务创建/认领、session
+  操作、`search --assignee`、`event list --agent` 等按名称过滤的路径
+  统一返回 `PERMISSION_SCOPE`（"is deactivated and cannot act"）。
 
 注册：
 
@@ -628,6 +654,12 @@ carryctx session start \
 --provider <provider>
 --metadata <key=value>
 ```
+
+0.6.0 起 `--reuse` 生效：存在同 Agent 的 active session 时直接返回该
+session（不新建、不改状态）；不存在时正常创建新 session
+（reuse-if-active-else-new）。省略该参数时保持历史行为（总是创建新
+session，旧 active session 按实现收尾/共存）。`session abandon` 与其
+`--reason` 参数的行为在本版本未改变：reason 目前仍被解析但不持久化。
 
 结束：
 
@@ -693,6 +725,17 @@ queries; it does not prevent claiming, starting, or assigning a Task. Both
 fields are serialized as `team_id` and `required_role` in JSON. `task edit`
 also accepts `--required-role`.
 
+0.6.0 起创建约束：
+
+- `--status` 只接受 `planned` 或 `ready`（白名单）。`ready` 还要求强依赖
+  已全部完成；其余状态必须通过 claim/start/block/complete/cancel 等生命周期
+  转换到达，不能在出生时伪造（例如直接铸造 completed 任务）。
+- `--title` 最长 200 字符，`--description` 最长 8000 字符，超长返回
+  `VALIDATION_FAILED`。
+- `task list` 默认上限 200 条（可用 `[task].list_limit` 配置或
+  `task list --limit` 覆盖）；列表按 `created_at DESC` 排序并由迁移
+  `0016_task_list_index` 提供索引支撑。
+
 ---
 
 ## 16.2 Task 状态
@@ -712,6 +755,12 @@ cancelled
 ```text
 INVALID_TASK_TRANSITION
 ```
+
+0.6.0 起 Complete 与 Claim/Start/Unblock 一样受强依赖门控：存在未完成的
+strong prerequisite 时 `task complete` 返回
+`DEPENDENCY_INCOMPLETE`，不允许带着 open blocker 收尾（单一领域谓词
+`prerequisite_settled` 统一判定，completed/cancelled 均视为已结算，
+创建与转换的门控不会漂移）。
 
 ## Team Coordination (v0.6.0)
 
@@ -811,6 +860,17 @@ failure aborts the migration. Migrations 0012 and 0013 rebuild affected SQLite
 tables as part of their schema changes; this does not change public Team
 command semantics.
 
+0.6.0 hardening 将最新 schema 版本推进到 **16**，新增三个迁移：
+
+- `0014_cascade_task_refs`：重建 `handoffs` 与
+  `checkpoint_corrections`，把 `task_id` / `checkpoint_id` 外键从
+  NO ACTION 改为 ON DELETE CASCADE，使 prune 能在 FK=ON 下安全删除
+  父行，不再依赖关闭外键强制或留下孤儿行。
+- `0015_agent_name_unique`：幂等重建 `UNIQUE(project_id, name)`
+  agent 名称唯一索引（修复历史表重建中可能丢失的约束）。
+- `0016_task_list_index`：新增 `tasks(project_id, created_at DESC)`
+  索引，支撑默认任务列表排序。
+
 ---
 
 ## 16.3 Claim
@@ -887,7 +947,15 @@ carryctx task edit CTX-0001 --description "Revised requirements"
 
 owner 与 status 不使用 edit 修改，分别走 claim/release/start 等转换命令。
 编辑必须在一个 SQLite Transaction 中完成，并追加 `task.edited` 审计事件
-（payload 携带 before/after 的 title、priority、description）。
+（payload 携带 before/after 的 title、priority、description、required_role）。
+
+0.6.0 起编辑约束：
+
+- 处于 terminal 状态（completed/cancelled）的任务被冻结，`task edit`
+  返回 `STATE_CONFLICT`。
+- `--title` / `--description` 同样受 200/8000 长度上限约束。
+- 传入空字符串可清空可选字段（description、required_role）；省略参数
+  保持原值。
 
 ---
 
@@ -1010,6 +1078,18 @@ Accept 操作应：
 - 可选转移 Task Owner
 - 创建新 Session
 - 写入 Event
+
+0.6.0 起 Handoff 生命周期由状态机强制（Open→Accepted/Rejected→Closed）：
+
+- 合法转换：Open→Accepted、Open→Rejected、Open/Accepted/Rejected→Closed。
+  不存在任何回到 Open 的路径，也不接受 accept 已关闭的 handoff、
+  accept 后再 reject 等跳变；违规返回 `STATE_CONFLICT`。
+- 存储层 UPDATE 带 compare-and-set 守卫（只从允许的源状态更新），
+  并发双 accept 只有一个成功，另一个得到 `STATE_CONFLICT`。
+- 命令信封返回转换后的最新行（post-transition row），而非旧状态。
+- 每次转换在同一个事务中原子追加审计事件：`handoff.accepted`、
+  `handoff.rejected`、`handoff.closed`；事件写入失败则整个变更回滚，
+  审计与状态不会分叉。
 
 是否转移 Owner 必须通过：
 

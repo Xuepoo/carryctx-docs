@@ -304,6 +304,9 @@ single_active_session_per_agent = true
 # start, or assign. Capacity policy belongs to the commander or external harness.
 single_active_task_per_agent = true
 strict_completion = false
+# Default cap for `task list` rows (0-5000). Overridable per call with
+# `task list --limit`. Backed by migration 0016_task_list_index.
+list_limit = 200
 
 [context]
 default_mode = "compact"
@@ -776,8 +779,8 @@ carryctx --config-compat warn
 ```bash
 carryctx config list
 carryctx config get session.stale_after
-carryctx config set --project output.color never
-carryctx config unset --project output.color
+carryctx config set --cfg-project output.color never
+carryctx config unset --cfg-project output.color
 carryctx config sources
 carryctx config validate
 carryctx config path
@@ -787,19 +790,27 @@ carryctx config path
 
 ```bash
 carryctx config set --global output.color never
-carryctx config set --project task.strict_completion true
-carryctx config set --local agent.default_name claude-core
+carryctx config set --cfg-project task.list_limit 250
 ```
 
 写操作必须且只能显式指定一个作用域：
 
 ```text
---global
---project
---local
+--global        ~/.config/carryctx/config.toml（per machine）
+--cfg-project   <repo>/.carryctx/config.toml（随 Git 共享）
+--local         显式拒绝：返回 UNSUPPORTED_OPERATION（加载器尚未读取
+                .carryctx/local.toml，接受写入会造成静默失效）
 ```
 
 避免意外修改错误层级。
+
+0.6.0 起语义：
+
+- `config get` / `set` / `unset` 基于 `toml_edit` 类型化往返实现：
+  点号 key 写入正确的 TOML table，值保留真实类型（bool/integer 不再
+  字符串化），写入前做序列化-重解析校验。
+- `config get` 查询类型化配置树；未知 key 返回 `value: null` 且退出码 0。
+- 缺少作用域时返回明确错误与建议，而不是静默退出。
 
 ---
 
