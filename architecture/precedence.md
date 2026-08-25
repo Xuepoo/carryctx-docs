@@ -26,7 +26,7 @@ To prevent erratic behavior, all CarryCtx-compliant agents MUST resolve conflict
 
 ### 4. CarryCtx Project Rules (Constraints)
 **Scope**: Entire repository.
-**Definition**: Rules loaded via `carryctx-rules` (e.g., `.carryctx/rules/frontend.md` or rules inherited from active Presets).
+**Definition**: Rules loaded from `.carryctx/rules/` per the `use-carryctx` skill's presets-rules-personas guidance (e.g., `.carryctx/rules/frontend.md` or rules inherited from active Presets).
 **Example**: "Always use `snake_case` for variables. Never use Tailwind CSS."
 **Conflict Resolution**: Overrides Personas and General Knowledge. These are the absolute engineering standards of the project.
 
