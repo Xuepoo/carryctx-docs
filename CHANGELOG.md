@@ -1,5 +1,48 @@
 # CarryCtx Changelog
 
+## [Unreleased]
+
+Post-v0.7.0 fixes from the issue #106 campaign, verified against a release
+build of the fix branch (`carryctx/ctx-0083` @ `91a5275`). All changes keep
+the JSON envelope contract and single-agent workflows unchanged.
+
+### Added
+
+- `worktree remove <REF>`: deletes a bound Git worktree **and** removes its
+  registration row. `<REF>` accepts the bound task's CTX display-id, the
+  worktree ULID, or its path. Dirty worktrees are refused with
+  `STATE_CONFLICT` (exit 3) unless `--force` is passed; when the directory
+  is already gone only the registration is cleaned up
+  (`data.git_removed=false`). The removal appends a `worktree.removed`
+  audit event in the same transaction. `worktree unbind` help now reads
+  "Detach a worktree from its task without deleting anything".
+- MCP server implements `ping`, answering id-bearing requests with an empty
+  object result (`{"id":<id>,"jsonrpc":"2.0","result":{}}`); notifications
+  (requests without id) receive no response.
+
+### Changed
+
+- **Behavior change**: `CARRYCTX_AGENT` no longer implicitly scopes
+  `event list`. Without an explicit `--agent` flag the full project event
+  stream is returned; identity resolution and event attribution via the
+  environment variable are unaffected.
+- `event list --cursor` tokens are opaque: the `(occurred_at, id)` keyset
+  tuple is base64url-encoded and suffixed with an 8-hex checksum. Tampered
+  or malformed tokens fail with `VALIDATION_FAILED` instead of silently
+  returning wrong pages. Legacy plaintext `(occurred_at|id)` tokens remain
+  readable only when they contain no `.` (they are rewritten to the opaque
+  format on the next emitted `next_cursor`); genuine pre-opaque cursors
+  carry fractional-second timestamps and therefore must be discarded after
+  upgrading — restart pagination from page one.
+- Search hits of kind `task` populate top-level `display_id` with the
+  task's CTX id (previously always `null`; `task_display_id` unchanged).
+  Progress/decision hits keep their own ids; checkpoint hits stay `null`.
+- `doctor` exit codes reflect finding severity: exit `1` is reserved for
+  `error`/`critical` findings or infrastructure failure;
+  warning/info-only reports exit `0` (rendered report unchanged, `all_ok`
+  still reports `false`). Scripts can distinguish "nothing broken" from
+  "stale worktree registration" without parsing output.
+
 ## [0.7.0] - 2026-08-24
 
 ### Upgrade notes

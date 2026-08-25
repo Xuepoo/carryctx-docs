@@ -237,6 +237,8 @@ carryctx handoff
 carryctx event
 carryctx search
 carryctx skill
+carryctx graph
+carryctx mcp
 ```
 
 ---
@@ -997,7 +999,6 @@ carryctx worktree show
 carryctx worktree status
 carryctx worktree unbind
 carryctx worktree remove
-carryctx worktree prune
 ```
 
 创建：
@@ -1017,13 +1018,31 @@ carryctx worktree create CTX-0001
 
 CarryCtx 使用系统 Git CLI 执行 worktree 操作。当检测到 [Jujutsu (jj) colocated 仓库](../plans/2026-07-25-jujutsu-compatibility.md)（`.git/` 旁存在 `.jj/`）时，`worktree create` 拒绝执行并返回 `VALIDATION_FAILED`：jj 的二级工作区（`jj workspace add`）没有独立的 `.git/` 目录，`carryctx` 的状态命令无法在其内部读取仓库状态；而 `git worktree add` 创建的目录 jj 也无法识别为工作区。用户应直接运行 `jj workspace add <path>`，进入该目录后仅使用 `jj` 命令；如需将其纳入 CarryCtx 状态追踪，应在主 colocated 仓库内运行 `carryctx worktree bind`。
 
-删除前必须检查：
+## `worktree remove`（Unreleased）
 
-- Dirty State
-- Untracked Files
-- Active Session
-- 未完成 Task
-- 未合并 Commit
+```bash
+carryctx worktree remove <REF> [--force]
+```
+
+`<REF>` 按以下形式解析：
+
+```text
+CTX display-id（被绑定 Task 的 CTX 编号，如 CTX-0002）
+Worktree ULID
+Worktree 路径
+```
+
+行为（均已对照真实 CLI 验证）：
+
+- 工作区包含已修改或未跟踪文件时拒绝执行：`STATE_CONFLICT`（退出码 3），
+  错误信息提示追加 `--force`。
+- 工作区干净或显式传入 `--force` 时，删除 Git 工作区并从注册表中整体移除
+  该行。
+- 目录已不存在时仅做注册清理：成功信封中 `data.git_removed=false`。
+- 成功路径在同一事务内追加 `worktree.removed` 审计事件。
+
+`worktree unbind` 仅解除 Task 绑定关系，不删除任何文件或注册记录
+（"detach without deleting anything"）。
 
 ---
 
@@ -1130,7 +1149,7 @@ carryctx event list \
 
 carryctx event list \
   --limit 100 \
-  --cursor "2026-08-24T10:00:00+00:00|01JABCDEF"
+  --cursor "MjAyNi0wOC0yNVQwODo0NzoyNi41MTE4NDEyNTQrMDA6MDB8MDFNMFcxTVBTRzhRV01DMkE1VFZENEExV1Y.a46140c7"
 ```
 
 分页与默认上限（0.6.0 起）：
@@ -1139,15 +1158,26 @@ carryctx event list \
 - 事件列表按 `(occurred_at, id)` keyset 排序，保证同一时间戳批次不重复、
   不遗漏。
 - `next_cursor`：当返回的是一整页（其后可能还有数据）时，输出 opaque 游标
-  token（`(occurred_at, id)` 编码）。把它作为 `--cursor <token>` 原样传回即
-  可获取下一页；游标严格按元组推进，翻页不重复、不遗漏。非法游标返回
-  `VALIDATION_FAILED`（错误信封走 stderr），不会静默忽略。
+  token。token 形如 `<base64url("occurred_at|id")>.<8 位十六进制校验和>`，
+  把它作为 `--cursor <token>` 原样传回即可获取下一页；游标严格按元组推进，
+  翻页不重复、不遗漏。
+- 游标校验（Unreleased）：任何包含 `.` 的 token 一律按 opaque 格式校验，
+  载荷被篡改或校验和不匹配时返回 `VALIDATION_FAILED`（错误信封走 stderr，
+  退出码 8），不会静默忽略。旧版明文 `(occurred_at|id)` token 仅在不包含
+  `.` 时继续被接受，并在下一次输出 `next_cursor` 时自动改写为 opaque 格式；
+  注意真实历史 token 的时间戳带小数秒（必然含 `.`），升级后会按 opaque
+  校验拒绝——应丢弃旧 token 从头翻页。
 - 兼容性：不传 `--cursor` 时首页行为与旧版一致，仅 `next_cursor` 从固定
   `null` 变为在存在后续页时填充真实 token。
 - 引用解析失败即大声报错：`--agent` 指向不存在或已 deactivated 的 agent 时，
   分别返回 `RESOURCE_NOT_FOUND` / `PERMISSION_SCOPE`（"is deactivated and
   cannot act"，错误信封走 stderr），与 `search --assignee` 完全一致；不会
   静默放宽为全量事件流。`--task` 同样大声报错。
+
+Agent 过滤语义（Unreleased 行为变更）：环境变量 `CARRYCTX_AGENT`
+不再隐式过滤 `event list` 结果——省略 `--agent` 时始终返回项目全量事件流；
+只有显式传入 `--agent` 才按 agent 过滤。该变量的身份解析与事件归因
+（写入事件的 actor）不受影响。
 
 Event 不提供普通删除命令。
 
@@ -1190,6 +1220,11 @@ carryctx search "markdown worker protocol"
 ````
 
 `branch` 解析顺序：Checkpoint 命中优先使用该 Checkpoint 自身记录的 `branch`（创建时的真实分支），否则回退到该 Task 当前的 worktree 绑定分支；其余三种命中类型直接使用 worktree 绑定分支。两者都缺失时为 `null`。
+
+顶层 `display_id`（Unreleased）：`kind=task` 的命中现在填充为该 Task 自己的
+CTX 编号（此前恒为 `null`，只能读 `task_display_id`）；其余命中类型不变——
+progress / decision 使用各自编号（`PX-*` / `DEC-*`），checkpoint 为 `null`。
+`task_display_id` 字段对所有类型保持原样。
 
 索引维护：`tasks`、`progress_items`、`checkpoints`、`decisions` 各有一张 FTS5 虚表，通过触发器随对应主表的增删改同步；升级到包含此功能的版本时，迁移会对已有数据一次性回填索引。
 
@@ -1234,6 +1269,14 @@ check is read-only by default. `--prune-stale-worktrees` explicitly removes only
 the stale registrations from SQLite; it never deletes filesystem paths and emits
 a `worktree.pruned` audit event for each removed registration.
 
+退出码反映发现严重级别（Unreleased）：
+
+- 存在 `error` 或 `critical` 级检查、或基础设施本身不可用（如数据库无法打开）
+  时，退出码为 `1`。
+- 仅有 `warning` / `info` 级发现时，退出码为 `0`——此时 `all_ok` 仍为
+  `false`，报告渲染不变。脚本因此可以区分"无实质故障"与"真坏了"
+  （例如陈旧的 worktree 注册不应让 CI 失败）。
+
 破坏性修复要求：
 
 ```text
@@ -1242,7 +1285,58 @@ a `worktree.pruned` audit event for each removed registration.
 
 ---
 
-# 24. `carryctx skill`
+# 24. `carryctx graph`
+
+上下文依赖图（AST/文件级）的维护与导出：
+
+```text
+carryctx graph edges <node>
+carryctx graph add-node --node-type <type> --name <name>
+carryctx graph link <source> <target> <relation>
+carryctx graph extract-deps <path>
+carryctx graph scan
+carryctx graph export <format>
+```
+
+写操作（`add-node` / `link` / `extract-deps` / `scan`）支持 `--dry-run`
+（0.7.0 起）：
+
+- 文本模式：计划以 `[dry-run] Would …` 形式输出到 stderr，stdout 为空，
+  不落库。
+- `--format json --dry-run`：stdout 输出标准成功信封，`data` 固定为
+  `{"operation":{"applied":false}}`；stderr 输出同一行 `[dry-run]` 计划。
+
+```json
+{
+  "schema_version": 1,
+  "command": "graph.scan",
+  "success": true,
+  "data": { "operation": { "applied": false } },
+  "meta": { "timestamp": "2026-08-25T09:01:26.543318320+00:00" }
+}
+```
+
+---
+
+# 25. `carryctx mcp`
+
+以 stdio 传输启动 Model Context Protocol 服务器（JSON-RPC 2.0），供
+Cursor、Claude Desktop 等客户端原生调用 CarryCtx 工具集：
+
+```bash
+carryctx mcp
+```
+
+协议行为：
+
+- `initialize` 返回协议版本 `2024-11-05` 与工具能力声明。
+- `ping`（Unreleased）：携带 id 的请求返回空对象结果
+  `{"id":<id>,"jsonrpc":"2.0","result":{}}`；通知（无 id）不产生任何响应。
+- 未知方法返回 `-32601 Method not found` 错误对象，请求 id 原样回显。
+
+---
+
+# 26. `carryctx skill`
 
 ```text
 carryctx skill install
@@ -1273,9 +1367,9 @@ carryctx skill install --project
 
 ---
 
-# 25. JSON 输出规范
+# 27. JSON 输出规范
 
-## 25.0 字段命名约定
+## 27.0 字段命名约定
 
 已发布 CLI 的 JSON 成功/错误 Envelope 使用 snake_case：
 `schema_version`、`command`、`success`、`data`、`warnings`、`meta`、`error`。
@@ -1335,7 +1429,7 @@ snake_case；若将来需要迁移旧 payload，必须单独提出版本化、�
 
 ---
 
-# 25.1 文本输出（compact）
+## 27.1 文本输出（compact）
 
 `--format text`（默认）为 Agent 上下文做精简：实体类命令只输出单行摘要，
 不输出完整记录（ULID、时间戳、空字段等一律省略）。
@@ -1355,14 +1449,14 @@ HO-0003    open         → 01KY7HA5  Bug B: per-character positioned carriers .
 `progress.*`、`decision.*`、`worktree.*`、`event.*`、`search`、`status`。
 未覆盖的命令保持原有 pretty JSON 文本输出。
 
-## 25.2 完整文本输出
+## 27.2 完整文本输出
 
 需要完整字段时使用以下任一方式（JSON 输出不受影响，始终为完整 Envelope）：
 
 - 全局 `--verbose` 标志：`carryctx task show CTX-0321 --verbose`
 - 配置文件：`.carryctx/config.toml` 中设置 `[output] verbose = true`
 
-## 25.3 字段投影
+## 27.3 字段投影
 
 可用 `--fields`（全局参数）或配置文件按命令过滤输出字段，只保留需要的高关注字段：
 
@@ -1383,7 +1477,7 @@ JSON Envelope 结构（`schema_version`/`command`/`success`/`data`/`meta`）保�
 
 ---
 
-# 26. Exit Code
+# 28. Exit Code
 
 ```text
 0   Success
@@ -1407,7 +1501,7 @@ Exit Code 必须视为公共 API。
 
 ---
 
-# 27. 输出流
+# 29. 输出流
 
 ```text
 stdout → 正常结果
@@ -1430,7 +1524,7 @@ JSON Warning 放在成功 Envelope 的 `warnings` 中，Verbose 诊断放在 `me
 
 ---
 
-# 28. 命令稳定性等级
+# 30. 命令稳定性等级
 
 命令在文档中标记：
 
@@ -1466,11 +1560,13 @@ experimental:
   task scope
   skill install/list/path/doctor
   worktree create
-  worktree bind/list/show/status/unbind
+  worktree bind/list/show/status/unbind/remove
+  graph add-node/link/extract-deps/scan/export/edges
+  mcp
 
 deferred:
   project export/import
-  worktree remove/prune
+  worktree prune
   event tail
   skill update/export
   shell completion
