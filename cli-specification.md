@@ -1051,6 +1051,10 @@ Worktree 路径
   该行。
 - 目录已不存在时仅做注册清理：成功信封中 `data.git_removed=false`。
 - 成功路径在同一事务内追加 `worktree.removed` 审计事件。
+- 在检测到 `.git/` 旁存在 `.jj/` 的 colocated 仓库时，禁止删除仍存在的 Git
+  worktree，即使传入 `--force` 也返回 `VALIDATION_FAILED`，并保留注册记录；这避免
+  `git worktree remove` 绕过 jj 的 workspace 状态。目录已经不存在时仍可安全地清理
+  CarryCtx 注册记录。
 
 `worktree unbind` 仅解除 Task 绑定关系，不删除任何文件或注册记录
 （"detach without deleting anything"）。
