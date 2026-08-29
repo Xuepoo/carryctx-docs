@@ -22,10 +22,11 @@ the JSON envelope contract and single-agent workflows unchanged.
 
 ### Changed
 
-- Terminal task corrections via `task edit --force` now require an active
-  authenticated agent who is either the task owner or an agent recorded on
-  the terminal transition. Authorized corrections are recorded as
-  `task.corrected`; `--force` on non-terminal tasks remains rejected.
+- Terminal tasks remain immutable by default, while `task edit --force` allows
+  corrections only for an active authenticated agent who is either the task
+  owner or an agent recorded on the terminal transition. Authorized
+  corrections are recorded as `task.corrected`; `--force` on non-terminal
+  tasks remains rejected.
 - **Behavior change**: `CARRYCTX_AGENT` no longer implicitly scopes
   `event list`. Without an explicit `--agent` flag the full project event
   stream is returned; identity resolution and event attribution via the
