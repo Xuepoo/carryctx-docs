@@ -2,9 +2,10 @@
 
 **项目名称：** CarryCtx
 **英文定位：** Persistent project context for coding agents
-**文档版本：** v0.1
+**文档版本：** v0.8.0
+**适用版本：** CarryCtx v0.8.x
 **产品阶段：** Requirements Draft
-**目标发布形式：** TypeScript CLI / npm Package
+**目标发布形式：** Native Rust CLI / Cargo, npm, and binary packages
 **默认命令：** `carryctx`
 
 ---

@@ -1,8 +1,8 @@
 # CarryCtx 配置与存储规范
 
 **文档路径：** `carryctx-docs/configuration.md`
-**文档版本：** v0.1
-**适用版本：** CarryCtx v0.1.x
+**文档版本：** v0.8.0
+**适用版本：** CarryCtx v0.8.x
 
 ---
 
@@ -483,7 +483,7 @@ $(git rev-parse --git-common-dir)/carryctx/
 ```sql
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
-PRAGMA busy_timeout = 5000;
+PRAGMA busy_timeout = 10000;
 PRAGMA synchronous = NORMAL;
 ```
 
@@ -708,6 +708,11 @@ worktree_root = "../.worktrees"
 项目配置支持 worktree 清理策略。默认策略保持安全：任务完成后仅在
 worktree 空闲时创建/执行清理请求，取消任务不自动清理，不删除分支，并要求
 worktree clean 且没有 active session。
+
+清理请求是持久化的、可重试的生命周期记录，不等同于立即删除。检查失败或
+发现 dirty、locked、active-session、jj-colocated 等阻塞条件时，CarryCtx 保留
+请求并报告阻塞原因；只有所有安全条件满足时才执行删除。失败请求不会被静默
+视为成功，可通过 `carryctx worktree cleanup list/show/run` 检查和重试。
 
 ```toml
 [worktree.cleanup]
