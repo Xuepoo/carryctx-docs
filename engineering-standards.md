@@ -1,12 +1,8 @@
 # CarryCtx 工程与开发规范
 
 **文档路径：** `carryctx-docs/engineering-standards.md`
-**文档版本：** v0.8.0
-**适用版本：** CarryCtx v0.8.x
-
-> 本文档保留早期 v0.1 设计章节作为历史参考。当前实现是 Rust CLI，使用
-> Cargo、rusqlite 和原生二进制发布；涉及当前发布流程时，以
-> `carryctx-cli/AGENTS.md`、CLI 仓库的 `justfile` 与 GitHub Actions 为准。
+**文档版本：** v0.1
+**适用版本：** CarryCtx v0.1.x
 
 ---
 
@@ -51,10 +47,10 @@ CLI 入口：
 
 原因：
 
-- 使用 Bun 统一 package manager、runtime、test 和 bundler
-- 直接使用 `bun:sqlite`
-- 减少原生 SQLite 第三方依赖
-- 后续可以生成 standalone executable
+* 使用 Bun 统一 package manager、runtime、test 和 bundler
+* 直接使用 `bun:sqlite`
+* 减少原生 SQLite 第三方依赖
+* 后续可以生成 standalone executable
 
 Bun 当前没有实现 `node:sqlite`，因此 v0.1 不同时维护 `node:sqlite` 与 `bun:sqlite` 两套 Adapter。
 
@@ -91,11 +87,11 @@ v0.1 不使用 ORM。
 
 原因：
 
-- Schema 较稳定且关系明确
-- 需要直接控制 Transaction
-- 需要明确管理 Migration
-- 需要直接使用 SQLite PRAGMA
-- 避免 ORM 抽象增加 CLI 启动成本
+* Schema 较稳定且关系明确
+* 需要直接控制 Transaction
+* 需要明确管理 Migration
+* 需要直接使用 SQLite PRAGMA
+* 避免 ORM 抽象增加 CLI 启动成本
 
 ---
 
@@ -126,8 +122,16 @@ v0.1 不使用 ORM。
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "*.config.ts"],
-  "exclude": ["dist", "coverage", ".cache"]
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "*.config.ts"
+  ],
+  "exclude": [
+    "dist",
+    "coverage",
+    ".cache"
+  ]
 }
 ```
 
@@ -198,11 +202,11 @@ Adapters
 
 负责：
 
-- 参数解析
-- 命令路由
-- 输出格式选择
-- Exit Code
-- 交互提示
+* 参数解析
+* 命令路由
+* 输出格式选择
+* Exit Code
+* 交互提示
 
 不得包含业务状态转换。
 
@@ -210,41 +214,41 @@ Adapters
 
 负责：
 
-- Use Case
-- Transaction 边界
-- 权限检查
-- Entity 协调
-- Event 写入
+* Use Case
+* Transaction 边界
+* 权限检查
+* Entity 协调
+* Event 写入
 
 ## Domain Layer
 
 负责：
 
-- Entity
-- Value Object
-- 状态机
-- Domain Error
-- 业务不变量
+* Entity
+* Value Object
+* 状态机
+* Domain Error
+* 业务不变量
 
 Domain Layer 不得依赖：
 
-- Bun API
-- SQLite
-- Git
-- Terminal
-- 文件系统
+* Bun API
+* SQLite
+* Git
+* Terminal
+* 文件系统
 
 ## Adapter Layer
 
 负责：
 
-- Git CLI
-- SQLite
-- XDG Path
-- TOML
-- Terminal
-- Clock
-- ID Generator
+* Git CLI
+* SQLite
+* XDG Path
+* TOML
+* Terminal
+* Clock
+* ID Generator
 
 ---
 
@@ -254,12 +258,12 @@ Domain Layer 不得依赖：
 
 Bun 负责：
 
-- 安装依赖
-- Lockfile
-- 执行 TypeScript
-- 运行测试
-- 打包
-- 发布前构建
+* 安装依赖
+* Lockfile
+* 执行 TypeScript
+* 运行测试
+* 打包
+* 发布前构建
 
 统一命令：
 
@@ -291,11 +295,11 @@ Oxfmt 是项目唯一的主要源代码 Formatter。
 
 负责：
 
-- TypeScript
-- JavaScript
-- JSON
-- JSONC
-- Oxc 支持的配置文件
+* TypeScript
+* JavaScript
+* JSON
+* JSONC
+* Oxc 支持的配置文件
 
 配置：
 
@@ -340,13 +344,13 @@ bunx oxlint .
 
 Oxlint 负责：
 
-- Correctness
-- Suspicious Pattern
-- Import
-- Promise
-- Node/Bun Code Quality
-- TypeScript Lint
-- 项目自定义架构规则
+* Correctness
+* Suspicious Pattern
+* Import
+* Promise
+* Node/Bun Code Quality
+* TypeScript Lint
+* 项目自定义架构规则
 
 Oxc 提供 TypeScript/JavaScript parser、linter 和 formatter，并支持独立配置文件。
 
@@ -358,11 +362,11 @@ Biome 不作为主要 Formatter，也不作为主要 JS/TS Linter。
 
 Biome 仅负责：
 
-- Assist
-- Import Organization
-- 补充结构检查
-- 编辑器辅助
-- Oxc 暂未覆盖的有限规则
+* Assist
+* Import Organization
+* 补充结构检查
+* 编辑器辅助
+* Oxc 暂未覆盖的有限规则
 
 `biome.jsonc`：
 
@@ -384,7 +388,11 @@ Biome 仅负责：
     }
   },
   "files": {
-    "includes": ["src/**/*.ts", "tests/**/*.ts", "*.config.ts"]
+    "includes": [
+      "src/**/*.ts",
+      "tests/**/*.ts",
+      "*.config.ts"
+    ]
   }
 }
 ```
@@ -518,13 +526,13 @@ bunx markdownlint-cli2 "**/*.md" "#node_modules" "#dist"
 
 Markdownlint 负责：
 
-- 标题层级
-- 空行
-- 列表风格
-- Code Fence
-- 行尾空格
-- 链接格式
-- 文档结构一致性
+* 标题层级
+* 空行
+* 列表风格
+* Code Fence
+* 行尾空格
+* 链接格式
+* 文档结构一致性
 
 Markdown 不由 Oxfmt 强制格式化。
 
@@ -534,11 +542,11 @@ Markdown 不由 Oxfmt 强制格式化。
 
 Knip 用于检测：
 
-- 未使用依赖
-- 未使用 devDependencies
-- 未使用文件
-- 未使用 Export
-- 未使用 Type
+* 未使用依赖
+* 未使用 devDependencies
+* 未使用文件
+* 未使用 Export
+* 未使用 Type
 
 命令：
 
@@ -558,12 +566,12 @@ Knip 在 CI 中必须执行。
 
 允许通过配置显式声明：
 
-- CLI Entry
-- Migration Entry
-- Test Fixture
-- Dynamic Import
-- Skill Resource
-- Package Export
+* CLI Entry
+* Migration Entry
+* Test Fixture
+* Dynamic Import
+* Skill Resource
+* Package Export
 
 不得通过大量全局 ignore 使 Knip 失去作用。
 
@@ -673,12 +681,12 @@ actionlint
 
 它用于检查 GitHub Actions 的：
 
-- YAML Syntax
-- Expression
-- Matrix
-- Action Input
-- Shell Script
-- Workflow Schema
+* YAML Syntax
+* Expression
+* Matrix
+* Action Input
+* Shell Script
+* Workflow Schema
 
 Actionlint 可以自动发现仓库中的 Workflow 并检查错误。
 
@@ -821,41 +829,41 @@ tests/helpers/
 
 覆盖：
 
-- Domain State Machine
-- Config Merge
-- Task Dependency
-- Context Ranking
-- Error Mapping
-- Path Resolution
+* Domain State Machine
+* Config Merge
+* Task Dependency
+* Context Ranking
+* Error Mapping
+* Path Resolution
 
 ## Integration Test
 
 使用临时 Git repository 测试：
 
-- `carryctx init`
-- Git common directory
-- 多 worktree
-- SQLite transaction
-- Checkpoint
-- Resume
-- Task claim race
-- Database migration
+* `carryctx init`
+* Git common directory
+* 多 worktree
+* SQLite transaction
+* Checkpoint
+* Resume
+* Task claim race
+* Database migration
 
 ## CLI Snapshot Test
 
 测试：
 
-- Human-readable output
-- JSON output
-- Error output
-- Exit Code
+* Human-readable output
+* JSON output
+* Error output
+* Exit Code
 
 Snapshot 中不得包含：
 
-- 绝对用户路径
-- 随机时间
-- 不稳定 ULID
-- 平台特定分隔符
+* 绝对用户路径
+* 随机时间
+* 不稳定 ULID
+* 平台特定分隔符
 
 需要通过 Fixture Normalizer 归一化。
 
@@ -911,10 +919,10 @@ just knip
 
 只运行快速检查：
 
-- Oxfmt Check
-- Oxlint staged files
-- Markdownlint staged Markdown
-- Biome Assist Check
+* Oxfmt Check
+* Oxlint staged files
+* Markdownlint staged Markdown
+* Biome Assist Check
 
 目标时间：
 
@@ -930,24 +938,24 @@ just knip
 
 运行：
 
-- Typecheck
-- Unit Test
-- Oxlint
+* Typecheck
+* Unit Test
+* Oxlint
 
 ## CI
 
 运行完整：
 
-- Format
-- Typecheck
-- Lint
-- Biome
-- Markdownlint
-- Knip
-- Unit Test
-- Integration Test
-- Actionlint
-- Package Smoke Test
+* Format
+* Typecheck
+* Lint
+* Biome
+* Markdownlint
+* Knip
+* Unit Test
+* Integration Test
+* Actionlint
+* Package Smoke Test
 
 Git Hook 不能替代 CI。
 
@@ -998,17 +1006,17 @@ just release-check
 
 必须通过：
 
-- Clean Git Worktree
-- Format
-- Typecheck
-- Lint
-- Markdownlint
-- Knip
-- Tests
-- Actionlint
-- Package Smoke Test
-- Version Consistency
-- Changelog Check
+* Clean Git Worktree
+* Format
+* Typecheck
+* Lint
+* Markdownlint
+* Knip
+* Tests
+* Actionlint
+* Package Smoke Test
+* Version Consistency
+* Changelog Check
 
 npm 包必须包含：
 
@@ -1052,35 +1060,35 @@ state.sqlite
 
 一个功能完成必须满足：
 
-- 需求已实现
-- Domain Test 已添加
-- Integration Test 已添加
-- JSON Output 已定义
-- Error Code 已定义
-- 文档已更新
-- `just check` 通过
-- `just package` 通过
-- 没有新增 Knip 问题
-- 没有未解释的 Lint Ignore
-- Commit 符合 Conventional Commits
+* 需求已实现
+* Domain Test 已添加
+* Integration Test 已添加
+* JSON Output 已定义
+* Error Code 已定义
+* 文档已更新
+* `just check` 通过
+* `just package` 通过
+* 没有新增 Knip 问题
+* 没有未解释的 Lint Ignore
+* Commit 符合 Conventional Commits
 
 ---
 
 # 17. 最终工具职责矩阵
 
-| 工具              | 唯一职责                      |
-| ----------------- | ----------------------------- |
-| TypeScript        | 类型检查                      |
+| 工具                | 唯一职责                       |
+| ----------------- | -------------------------- |
+| TypeScript        | 类型检查                       |
 | Bun               | Runtime、Package、Test、Build |
-| Oxfmt             | 主要 Formatter                |
-| Oxlint            | 主要 JS/TS Linter             |
-| Biome             | Assist 与补充检查             |
-| Lefthook          | Git Hook 管理                 |
-| Commitlint        | Commit Message                |
-| Markdownlint CLI2 | Markdown                      |
-| Knip              | 未使用代码和依赖              |
-| Actionlint        | GitHub Actions 静态检查       |
-| act               | 本地 Workflow 预检            |
-| just              | 统一开发命令入口              |
+| Oxfmt             | 主要 Formatter               |
+| Oxlint            | 主要 JS/TS Linter            |
+| Biome             | Assist 与补充检查               |
+| Lefthook          | Git Hook 管理                |
+| Commitlint        | Commit Message             |
+| Markdownlint CLI2 | Markdown                   |
+| Knip              | 未使用代码和依赖                   |
+| Actionlint        | GitHub Actions 静态检查        |
+| act               | 本地 Workflow 预检             |
+| just              | 统一开发命令入口                   |
 
 任何新工具加入前，必须说明它是否与现有职责重叠。

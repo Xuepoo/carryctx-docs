@@ -48,13 +48,6 @@ the JSON envelope contract and single-agent workflows unchanged.
   still reports `false`). Scripts can distinguish "nothing broken" from
   "stale worktree registration" without parsing output.
 
-## [0.8.0] - 2026-08-30
-
-### Changed
-
-- Release readiness aligns version metadata, distribution checks, package smoke
-  validation, stale URLs, and the authoritative shared-state wording.
-
 ## [0.7.0] - 2026-08-24
 
 ### Upgrade notes

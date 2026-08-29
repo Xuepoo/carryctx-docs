@@ -2,9 +2,9 @@
 
 **项目名称：** CarryCtx
 **英文定位：** Persistent project context for coding agents
-**文档版本：** v0.8.0
-**产品阶段：** Native Rust CLI / multi-channel distribution
-**目标发布形式：** Rust binary / crates.io / npm launcher
+**文档版本：** v0.1
+**产品阶段：** Requirements Draft
+**目标发布形式：** TypeScript CLI / npm Package
 **默认命令：** `carryctx`
 
 ---
