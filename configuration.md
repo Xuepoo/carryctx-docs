@@ -584,6 +584,10 @@ Command-line Flags
 
 CLI 参数始终具有最高优先级。
 
+每一层按 TOML 原始字段递归合并。未声明的高优先级字段不会被该层的
+内置默认值覆盖；只有实际声明的字段才覆盖低优先级层的值。合并完成后，
+再对完整配置应用类型和枚举校验。
+
 ---
 
 # 7. 配置合并规则
@@ -699,7 +703,39 @@ worktree_root = "../.worktrees"
 
 ---
 
-# 8. 配置环境变量
+# 8. Worktree 生命周期清理
+
+项目配置支持 worktree 清理策略。默认策略保持安全：任务完成后仅在
+worktree 空闲时创建/执行清理请求，取消任务不自动清理，不删除分支，并要求
+worktree clean 且没有 active session。
+
+```toml
+[worktree.cleanup]
+on_task_completed = "when_idle" # keep | when_idle
+on_task_cancelled = "keep"      # keep | when_idle
+require_clean = true
+require_no_active_session = true
+delete_branch = "never"
+```
+
+`on_task_completed` 和 `on_task_cancelled` 只接受 `keep` 或 `when_idle`；
+`delete_branch` 只接受 `never` 或 `when_removed`。不支持的字符串在配置边界
+返回配置错误，安全默认值不会被替换。
+
+当取消策略为 `when_idle` 时，取消任务提交后立即执行一次与完成任务相同的
+清理请求 reconciliation。它使用项目 admission lock、active session、当前
+工作目录、Git worktree/status/lock 检查；任何检查错误均按阻塞处理或保留为
+原有错误，不得推断 worktree clean、unlocked 或可删除。若被阻塞，请通过
+`carryctx worktree cleanup run` 或 session 结束后的 reconciliation 重试。
+
+清理请求和 `carryctx worktree cleanup list/show/run` 的记录包含结构化的
+`status`、`reason`、`attempt_count` 和阻塞原因。`carryctx doctor` 会以 warning
+报告 pending、blocked 或 failed 请求，并建议运行 cleanup。清理只使用本地
+Git/SQLite 操作，不安装或执行 shell hooks。
+
+---
+
+# 9. 配置环境变量
 
 所有环境变量使用：
 
