@@ -949,8 +949,10 @@ carryctx task edit CTX-0001 --title "Corrected title" --force
 ```
 
 owner 与 status 不使用 edit 修改，分别走 claim/release/start 等转换命令。
-编辑必须在一个 SQLite Transaction 中完成，并追加 `task.edited` 审计事件
-（payload 携带 before/after 的 title、priority、description、required_role）。
+普通（非 terminal）编辑必须在一个 SQLite Transaction 中完成，并追加
+`task.edited` 审计事件（payload 携带 before/after 的 title、priority、description、
+required_role）。`--force` 不适用于 planned/ready/in_progress/blocked/review 任务；
+这些任务继续使用不带 `--force` 的普通编辑路径。
 
 对于 completed/cancelled 任务，普通编辑仍返回 `STATE_CONFLICT`。必须显式传入
 `--force` 才能执行 correction；调用者必须是当前有效（active）的任务 owner，或
@@ -962,8 +964,8 @@ Correction 与字段变更在同一 SQLite Transaction 中完成，并追加
 
 0.6.0 起编辑约束：
 
-- 处于 terminal 状态（completed/cancelled）的任务被冻结，`task edit`
-  返回 `STATE_CONFLICT`。
+- 处于 terminal 状态（completed/cancelled）的任务被冻结；不带 `--force` 的
+  `task edit` 返回 `STATE_CONFLICT`，带 `--force` 才进入 `task.corrected` correction 路径。
 - `--title` / `--description` 同样受 200/8000 长度上限约束。
 - 传入空字符串可清空可选字段（description、required_role）；省略参数
   保持原值。
