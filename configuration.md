@@ -730,7 +730,7 @@ delete_branch = "never"
 
 清理请求和 `carryctx worktree cleanup list/show/run` 的记录包含结构化的
 `status`、`reason`、`attempt_count` 和阻塞原因。`carryctx doctor` 会以 warning
-报告 pending、blocked 或 failed 请求，并建议运行 cleanup。清理只使用本地
+报告 pending、running、blocked 或 failed 请求，并建议运行 cleanup。清理只使用本地
 Git/SQLite 操作，不安装或执行 shell hooks。
 
 ---
