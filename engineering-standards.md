@@ -1,8 +1,12 @@
 # CarryCtx 工程与开发规范
 
 **文档路径：** `carryctx-docs/engineering-standards.md`
-**文档版本：** v0.1
-**适用版本：** CarryCtx v0.1.x
+**文档版本：** v0.8.0
+**适用版本：** CarryCtx v0.8.x
+
+**当前架构：** CarryCtx v0.8.x 使用 Rust 2024、Cargo、`rusqlite` 和原生 CLI 二进制，主要通过 Cargo、GitHub Releases 及平台包分发；npm 仅为可选 wrapper 分发渠道。
+
+> **历史范围：** 本文保留的 TypeScript/Bun、`bun:sqlite`、`package.json` 和 npm-first CLI 内容属于 v0.1 设计记录，仅用于解释历史决策，不适用于 CarryCtx v0.8.x.
 
 ---
 
@@ -11,25 +15,24 @@
 CarryCtx 采用统一技术栈：
 
 ```text
-Language:        TypeScript 7.0.2
-Runtime:         Bun 1.3.14+
-Package Manager: Bun
-Module System:   ESM
-Database:        SQLite through bun:sqlite
-Test Runner:     bun:test
-Distribution:    npm package
+Language:        Rust 2024
+Build Tool:      Cargo
+Runtime:         Native executable
+Database:        SQLite through rusqlite
+Test Runner:     cargo test
+Distribution:    Cargo, GitHub Releases, platform packages
 Primary OS:      Linux
 Secondary OS:    macOS
 Planned OS:      Windows
 ```
 
-TypeScript 和 Bun 基线版本在仓库初始化时固定。
+Rust edition and Cargo dependency versions are fixed per release.
 
 依赖升级通过独立 PR 完成，不允许在功能 PR 中顺带大规模升级工具链。
 
 ---
 
-# 2. Runtime 决策
+# 2. Runtime 决策（历史 v0.1）
 
 CarryCtx v0.1 是：
 
@@ -95,7 +98,7 @@ v0.1 不使用 ORM。
 
 ---
 
-# 4. TypeScript 规范
+# 4. TypeScript 规范（历史 v0.1）
 
 `tsconfig.json`：
 
@@ -252,7 +255,7 @@ Domain Layer 不得依赖：
 
 ---
 
-# 7. 开发工具职责
+# 7. 开发工具职责（历史 v0.1）
 
 ## 7.1 Bun
 
@@ -722,7 +725,7 @@ act pull_request
 
 ---
 
-# 8. `package.json` 规范
+# 8. `package.json` 规范（历史 v0.1）
 
 ```json
 {
@@ -961,7 +964,7 @@ Git Hook 不能替代 CI。
 
 ---
 
-# 13. 版本管理
+# 13. 版本管理（历史 v0.1）
 
 ## Runtime 与 Compiler
 

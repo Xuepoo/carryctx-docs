@@ -1,5 +1,28 @@
 # CarryCtx Changelog
 
+## [0.8.0] - 2026-08-30
+
+### Changed
+
+- The CLI is now shipped as a native Rust 2024/Cargo binary, with the release
+  workflow and platform packages aligned to the Cargo build and verified release
+  assets. The npm package remains an optional wrapper distribution channel.
+- Task lifecycle transitions are enforced through the shared state store,
+  including dependency-aware start/completion gates and terminal-task immutability.
+  Authorized `task edit --force` corrections for terminal tasks are recorded as
+  `task.corrected` audit events.
+- Configuration writes preserve TOML structure and value types through
+  `toml_edit`; runtime diagnostics use `RUST_LOG`/`tracing` observability without
+  changing the public output envelope.
+
+### Fixed
+
+- MCP child-tool execution now has bounded timeouts and bounded output draining,
+  including clean handling of broken pipes and JSON-RPC notifications.
+- Worktree cleanup and creation fail closed for live jj-colocated worktrees,
+  reporting the stable `jj_colocation` blocker instead of invoking Git worktree
+  removal where jj cannot safely observe the result.
+
 ## [Unreleased]
 
 Post-v0.7.0 fixes from the issue #106 campaign, verified against a release
