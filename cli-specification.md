@@ -1002,6 +1002,13 @@ Progress Item 默认关联当前 Task 和 Session。
 
 # 18. `carryctx worktree`
 
+Cleanup records returned by `worktree cleanup list`, `show`, and `run` include
+the existing `state` field and the structured lifecycle fields `status`,
+`reason`, `attempt_count`, and `blocked_reason`. Cleanup audit events use the
+same fields in their payloads, so pending, blocked, completed, and failed
+attempts are observable without parsing human output. `doctor` reports pending,
+blocked, and failed cleanup requests as warning findings.
+
 ```text
 carryctx worktree create
 carryctx worktree bind

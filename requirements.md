@@ -2499,7 +2499,7 @@ CarryCtx 默认不上传：
 
 # 20. 历史技术方案（v0.1，已废弃）
 
-本章保留 v0.1 的 TypeScript/Bun 设计记录，仅用于解释历史决策，不适用于 CarryCtx v0.8.x。当前实现使用 Rust 2021、Cargo、SQLite（rusqlite）和原生 CLI 分发。
+本章保留 v0.1 的 TypeScript/Bun 设计记录，仅用于解释历史决策，不适用于 CarryCtx v0.8.x。当前实现使用 Rust 2024、Cargo、SQLite（rusqlite）和原生 CLI 分发。
 
 推荐包结构：
 
