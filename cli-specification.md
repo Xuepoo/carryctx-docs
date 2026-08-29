@@ -937,6 +937,7 @@ v0.1 Scope 为软约束。
 carryctx task edit CTX-0001 --title "New title"
 carryctx task edit CTX-0001 --priority high
 carryctx task edit CTX-0001 --description "Revised requirements"
+carryctx task edit CTX-0001 --title "Corrected title" --force
 ```
 
 `task edit` 只修改传入的参数，支持：
@@ -950,6 +951,14 @@ carryctx task edit CTX-0001 --description "Revised requirements"
 owner 与 status 不使用 edit 修改，分别走 claim/release/start 等转换命令。
 编辑必须在一个 SQLite Transaction 中完成，并追加 `task.edited` 审计事件
 （payload 携带 before/after 的 title、priority、description、required_role）。
+
+对于 completed/cancelled 任务，普通编辑仍返回 `STATE_CONFLICT`。必须显式传入
+`--force` 才能执行 correction；调用者必须是当前有效（active）的任务 owner，或
+terminal transition 审计事件中的有效 actor。历史事件中以 agent name 保存的
+actor 会按当前 active agent 解析；未知或已停用 actor 不得授权 correction。
+Correction 与字段变更在同一 SQLite Transaction 中完成，并追加
+`task.corrected` 审计事件，payload 携带 before/after 字段及 `forced: true`。
+失败的授权检查不修改任务或事件，JSON/text 输出继续使用标准 entity envelope。
 
 0.6.0 起编辑约束：
 
