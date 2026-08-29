@@ -5,7 +5,7 @@
 **文档版本：** v0.8.0
 **适用版本：** CarryCtx v0.8.x
 **产品阶段：** Requirements Draft
-**目标发布形式：** Native Rust CLI / Cargo, npm, and binary packages
+**目标发布形式：** Native Rust CLI / Cargo, npm wrapper, and binary packages
 **默认命令：** `carryctx`
 
 ---
@@ -249,7 +249,7 @@ CarryCtx 是管理工具，不是大型 Agent 编排平台。
 - 创建中心化 SaaS 账户
 - 改造现有 Git 仓库结构
 
-第一版本应能够以单个 npm CLI 包运行。
+> **历史说明（v0.1）：** 本节记录早期“单个 npm CLI 包”目标，不是 v0.8 的实现约束。当前 CLI 以原生 Rust 二进制为核心，并通过 Cargo、GitHub Releases 及平台包分发；npm 仅作为可选 wrapper/distribution channel。
 
 ---
 
@@ -2497,9 +2497,9 @@ CarryCtx 默认不上传：
 
 ---
 
-# 20. TypeScript 技术要求
+# 20. 历史技术方案（v0.1，已废弃）
 
-CarryCtx 计划使用 TypeScript 开发并发布到 npm。
+本章保留 v0.1 的 TypeScript/Bun 设计记录，仅用于解释历史决策，不适用于 CarryCtx v0.8.x。当前实现使用 Rust 2021、Cargo、SQLite（rusqlite）和原生 CLI 分发。
 
 推荐包结构：
 
@@ -2527,7 +2527,7 @@ carryctx/
 
 ---
 
-## 20.1 npm 配置
+## 20.1 npm 配置（历史 v0.1）
 
 ```json
 {
@@ -2541,7 +2541,7 @@ carryctx/
 
 ---
 
-## 20.2 架构原则
+## 20.2 架构原则（仍适用）
 
 CLI 应采用分层架构：
 
@@ -2561,7 +2561,7 @@ SQLite / Git / File System
 
 ---
 
-## 20.3 Git 操作
+## 20.3 Git 操作（历史方案，原则仍适用）
 
 第一版本优先调用系统 Git CLI，而不是完全依赖 libgit2。
 
@@ -2579,7 +2579,7 @@ git diff
 
 ---
 
-## 20.4 SQLite Driver
+## 20.4 SQLite Driver（历史 v0.1）
 
 SQLite Driver 应支持：
 
@@ -2590,7 +2590,7 @@ SQLite Driver 应支持：
 - Foreign Key
 - Backup
 
-v0.1 固定使用 Bun 内置的：
+v0.1 曾固定使用 Bun 内置的：
 
 ```typescript
 import { Database } from "bun:sqlite";
@@ -2788,7 +2788,7 @@ carryctx context --json
 
 # 23. 建议开发阶段
 
-## 阶段一：基础设施
+## 阶段一：基础设施（历史 v0.1 规划）
 
 - npm 工程
 - CLI Framework
@@ -2955,14 +2955,14 @@ SQLite 适合本地多 worktree，但不适合直接跨机器共享。
 
 ---
 
-# 26. v0.1 已决策事项
+# 26. v0.1 已决策事项（历史记录）
 
 详细设计已固定以下事项：
 
 1. Task ID 默认前缀使用 `CTX`。
 2. 配置文件统一使用 TOML。
 3. SQLite Driver 使用 `bun:sqlite`。
-4. CLI Framework 使用 Citty。
+4. CLI Framework 使用 Citty（已由 Rust/Cargo CLI 取代）。
 5. v0.1 实现 worktree create、Handoff、Decision、Scope、stale Session、迁移、备份和 Markdown Context。
 6. 一个 Agent 可以同时拥有多个 active/in-progress Task。历史配置键
    `task.single_active_task_per_agent` 保留为兼容性输入；它不是 enforced cap，
@@ -2971,10 +2971,10 @@ SQLite 适合本地多 worktree，但不适合直接跨机器共享。
 7. Session stale 默认时间为 `2h`。
 8. Checkpoint 原始记录不可编辑；修正通过追加 Correction 记录完成。
 9. v0.1 不导出可提交 JSONL，也不生成自动项目状态报告。
-10. 通用 Skill 由 CLI npm 包内置，独立 Skill 仓库后续启用。
+10. 通用 Skill 由 CLI npm 包内置，独立 Skill 仓库后续启用（历史 v0.1 方案；当前由独立 skill 分发维护）。
 11. v0.1 不支持 MCP。
 12. Linux 为主要平台、macOS 为次要平台；Windows 仅保留路径抽象和测试。
-13. npm Package 使用 `@xuepoo/carryctx`，可执行命令保持 `carryctx`。
+13. npm Package 使用 `@xuepoo/carryctx`，可执行命令保持 `carryctx`（历史 v0.1 方案；当前 npm 为可选 wrapper）。
 
 ---
 
@@ -2997,7 +2997,7 @@ CarryCtx 应遵循以下原则：
 
 # 28. 产品摘要
 
-CarryCtx 是一个使用 TypeScript 开发并通过 npm 发布的本地 CLI。
+CarryCtx 是一个使用 Rust 开发的原生、本地 CLI，主要通过 Cargo、GitHub Releases 和平台包发布；npm wrapper 是可选分发渠道。
 
 它为大型 Git 项目提供结构化的 Agent 工作状态，使多个 Coding Agent 以及同一 Agent 的不同窗口能够持续理解：
 
