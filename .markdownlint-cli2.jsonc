@@ -4,8 +4,13 @@
     "MD013": false,
     "MD024": { "siblings_only": true },
     "MD033": false,
-    "MD041": false
+    "MD041": false,
+    "MD025": false
   },
   "globs": ["**/*.md"],
-  "ignores": ["node_modules", ".worktrees"]
+  "ignores": [
+    "node_modules",
+    ".worktrees",
+    "reports/**"
+  ]
 }

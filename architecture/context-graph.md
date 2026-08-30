@@ -4,12 +4,15 @@
 **Status**: Draft (Phase 2)
 
 ## 1. Overview
+
 As CarryCtx evolves from a linear state tracker into the "Git of Agent Context", it needs to support complex semantic relationships. The Context Graph allows agents to reason about the codebase holistically, answering questions like:
+
 - "Why was this file changed?"
 - "What tasks depend on this module?"
 - "Which bug is blocking this feature?"
 
 ## 2. Universal Nodes (Entities)
+
 CarryCtx already uses ULIDs (Universally Unique Lexicographically Sortable Identifiers) for all core entities (`tasks`, `agents`, `sessions`, `progress_items`, `checkpoints`). Because ULIDs are globally unique, we do not need to explicitly partition the graph by table type.
 
 To represent codebase artifacts (files, modules) and conceptual artifacts (bugs, decisions) that don't fit into the existing core tables, we introduce a generic **`graph_nodes`** table:
@@ -28,9 +31,10 @@ CREATE INDEX idx_graph_nodes_type ON graph_nodes(node_type);
 CREATE INDEX idx_graph_nodes_name ON graph_nodes(name);
 ```
 
-*Note: Existing core entities (Tasks, Agents) act as implicit graph nodes.*
+_Note: Existing core entities (Tasks, Agents) act as implicit graph nodes._
 
 ## 3. Universal Edges
+
 To map the relationships between any two nodes (whether they live in `graph_nodes` or core tables like `tasks`), we introduce a **`graph_edges`** table:
 
 ```sql
@@ -49,6 +53,7 @@ CREATE INDEX idx_graph_edges_relation ON graph_edges(relation_type);
 ```
 
 ## 4. Common Semantic Relations
+
 - **`depends_on`**: Task A depends on Task B; Module A depends on Module B.
 - **`changed`**: Task/Session modified File A.
 - **`fixed`**: Task A fixed Bug B.
@@ -57,7 +62,9 @@ CREATE INDEX idx_graph_edges_relation ON graph_edges(relation_type);
 - **`implements`**: Task implements Decision/Architecture.
 
 ## 5. Query Patterns
+
 Agents interacting via MCP will have access to graph queries:
+
 - **Impact Analysis**: "Find all `module` nodes where `relation_type = 'depends_on'` and `target_id = <Module_ULID>`."
 - **Context Gathering**: "Find all `file` nodes where `relation_type = 'changed'` and `source_id = <Task_ULID>`."
 - **Root Cause**: "Find all `bug` nodes where `relation_type = 'related_to'` and `target_id = <File_ULID>`."

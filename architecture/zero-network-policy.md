@@ -10,7 +10,7 @@ To ensure maximum security, privacy, and speed, we explicitly commit to the foll
 
 > **CarryCtx Core never initiates network connections.**
 
-### Specifically:
+### Specifically
 
 - **No telemetry upload**: Your project data remains on your machine.
 - **No automatic update checks**: You manage your tools via your system's package manager.
@@ -26,7 +26,7 @@ To ensure maximum security, privacy, and speed, we explicitly commit to the foll
 
 While the ecosystem may involve network interactions, these must strictly occur _outside_ the `carryctx` core binary.
 
-### Safe Operations (Zero Network in Core):
+### Safe Operations (Zero Network in Core)
 
 - Initializing `.carryctx`
 - Registering and switching Agents
@@ -41,7 +41,7 @@ While the ecosystem may involve network interactions, these must strictly occur 
 - `carryctx doctor`
 - `carryctx sync push` / `carryctx sync pull` against a local `--remote` path
 
-### External Responsibilities (Network permitted but delegated):
+### External Responsibilities (Network permitted but delegated)
 
 Any operation requiring the internet must be handled by external systems (e.g., package managers, Git, or native Agent Plugins).
 

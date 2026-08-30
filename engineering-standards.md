@@ -1097,19 +1097,19 @@ Cargo crate、GitHub Releases 原生二进制和平台包为准；npm 仅作为�
 
 # 17. 最终工具职责矩阵（历史 v0.1）
 
-| 工具                | 唯一职责                       |
+| 工具 | 唯一职责 |
 | ----------------- | -------------------------- |
-| TypeScript        | 类型检查                       |
-| Bun               | Runtime、Package、Test、Build |
-| Oxfmt             | 主要 Formatter               |
-| Oxlint            | 主要 JS/TS Linter            |
-| Biome             | Assist 与补充检查               |
-| Lefthook          | Git Hook 管理                |
-| Commitlint        | Commit Message             |
-| Markdownlint CLI2 | Markdown                   |
-| Knip              | 未使用代码和依赖                   |
-| Actionlint        | GitHub Actions 静态检查        |
-| act               | 本地 Workflow 预检             |
-| just              | 统一开发命令入口                   |
+| TypeScript | 类型检查 |
+| Bun | Runtime、Package、Test、Build |
+| Oxfmt | 主要 Formatter |
+| Oxlint | 主要 JS/TS Linter |
+| Biome | Assist 与补充检查 |
+| Lefthook | Git Hook 管理 |
+| Commitlint | Commit Message |
+| Markdownlint CLI2 | Markdown |
+| Knip | 未使用代码和依赖 |
+| Actionlint | GitHub Actions 静态检查 |
+| act | 本地 Workflow 预检 |
+| just | 统一开发命令入口 |
 
 任何新工具加入前，必须说明它是否与现有职责重叠。
