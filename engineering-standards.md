@@ -67,7 +67,7 @@ bun build --compile
 
 ---
 
-# 3. 核心依赖
+# 3. 核心依赖（历史 v0.1）
 
 建议初始依赖：
 
@@ -150,7 +150,7 @@ bunx tsc --noEmit
 
 ---
 
-# 5. 源代码结构
+# 5. 源代码结构（历史 v0.1）
 
 ```text
 carryctx/
@@ -187,7 +187,7 @@ carryctx/
 
 ---
 
-# 6. 架构分层
+# 6. 架构分层（当前 v0.8；沿用 v0.1 分层原则）
 
 ```text
 CLI Layer
@@ -252,6 +252,9 @@ Domain Layer 不得依赖：
 * Terminal
 * Clock
 * ID Generator
+
+v0.8 的实现使用 Rust 模块和 Cargo crate；SQLite adapter 通过
+`rusqlite` 实现，命令入口不得绕过 application/domain/repository 分层直接执行 SQL。
 
 ---
 
@@ -778,7 +781,7 @@ act pull_request
 
 ---
 
-# 9. 工具配置文件
+# 9. 工具配置文件（历史 v0.1）
 
 仓库根目录必须包含：
 
@@ -811,13 +814,16 @@ Makefile
 
 ---
 
-# 10. 测试规范
+# 10. 测试规范（历史 v0.1）
 
 使用：
 
 ```text
 bun:test
 ```
+
+以上 `bun:test` 和目录约定仅适用于 v0.1 TypeScript 实现。v0.8 使用
+Rust 的 `cargo test`；当前测试布局和命令以 `carryctx-cli` 仓库的 Cargo 配置为准。
 
 测试目录：
 
@@ -872,7 +878,7 @@ Snapshot 中不得包含：
 
 ---
 
-# 11. GitHub Actions
+# 11. GitHub Actions（历史 v0.1）
 
 建议 Workflow：
 
@@ -914,9 +920,13 @@ just knip
 6. 执行 `carryctx init`
 7. 执行 `carryctx status --json`
 
+以上 Workflow、Bun 命令和 npm smoke test 是 v0.1 历史记录，不是 v0.8 的
+CI 要求。v0.8 的发布 workflow 使用 `cargo build --release --locked` 构建各平台
+原生二进制，并校验 tag、Cargo 版本和发布资产后再生成平台包。
+
 ---
 
-# 12. Git Hook 与 CI 分工
+# 12. Git Hook 与 CI 分工（历史 v0.1）
 
 ## Pre-commit
 
@@ -962,6 +972,10 @@ just knip
 
 Git Hook 不能替代 CI。
 
+以上 Hook/CI 命令属于 v0.1 工具链记录。v0.8 的最低验证基线是
+`cargo fmt --check`、`cargo check`、`cargo clippy --workspace -- -D warnings`
+和 `cargo test`；发布前还必须验证 `cargo build --release --locked` 及目标平台资产。
+
 ---
 
 # 13. 版本管理（历史 v0.1）
@@ -999,7 +1013,7 @@ CI 中使用固定版本或固定 Action Commit。
 
 ---
 
-# 14. Release 规范
+# 14. Release 规范（历史 v0.1）
 
 发布前执行：
 
@@ -1042,6 +1056,10 @@ coverage/
 state.sqlite
 ```
 
+以上 npm 包内容和 `just release-check` 流程仅为 v0.1 历史记录。v0.8 发布以
+Cargo crate、GitHub Releases 原生二进制和平台包为准；npm 仅作为可选的带平台
+原生二进制 wrapper 渠道，不是 CLI 的唯一发布物。
+
 ---
 
 # 15. 代码质量原则
@@ -1077,7 +1095,7 @@ state.sqlite
 
 ---
 
-# 17. 最终工具职责矩阵
+# 17. 最终工具职责矩阵（历史 v0.1）
 
 | 工具                | 唯一职责                       |
 | ----------------- | -------------------------- |
