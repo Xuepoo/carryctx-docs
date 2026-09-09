@@ -115,12 +115,12 @@ Four contracts must never drift silently again. Each has exactly one source
 of truth; the table is the expected snapshot. A wave-2 CLI-repo task
 implements the check this section specifies — docs work stops at the spec.
 
-| Contract         | Source of truth                                                                                                                                           | Current value                                                                             |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `cli`            | `carryctx-cli/Cargo.toml`, `package.version` (runtime cross-check: `carryctx --version`, MCP `initialize` server info — both `env!("CARGO_PKG_VERSION")`) | `0.8.2`                                                                                   |
-| `ctxpack-format` | `carryctx-cli/src/domain/pack.rs`, `PACK_FORMAT` + `PACK_FORMAT_VERSION`                                                                                  | `carryctx-pack-dir`, `format_version` `1`                                                 |
-| `db-schema`      | `carryctx-cli/src/adapter/sqlite.rs` migration list, matching `migrations/project/NNNN_*.sql` (latest wins)                                               | `17` (`0017_worktree_cleanup_requests`)                                                   |
-| `skill-surface`  | `carryctx-skills/skills/use-carryctx/SKILL.md` frontmatter `version`, plus the minimum CLI surface the skill claims to cover                              | skill `1.1.0`; README still claims a `v0.8.0` surface (known drift, reconciled by wave-2) |
+| Contract         | Source of truth                                                                                                                                                                                     | Current value                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `cli`            | `carryctx-cli/Cargo.toml`, `package.version` (runtime cross-check: `carryctx --version`, MCP `initialize` server info — both `env!("CARGO_PKG_VERSION")`)                                           | `0.8.2`                                                                                   |
+| `ctxpack-format` | `crates/carryctx-core/src/domain/pack.rs` (`PACK_FORMAT` + `PACK_FORMAT_VERSION`; pre-P1 at `carryctx-cli/src/domain/pack.rs`)                                                                      | `carryctx-pack-dir`, `format_version` `1`                                                 |
+| `db-schema`      | `crates/carryctx-*/src/adapter/sqlite.rs` migration list (`crates/carryctx-sqlite` post-P2; pre-P2 at `carryctx-cli/src/adapter/sqlite.rs`), matching `migrations/project/NNNN_*.sql` (latest wins) | `17` (`0017_worktree_cleanup_requests`)                                                   |
+| `skill-surface`  | `carryctx-skills/skills/use-carryctx/SKILL.md` frontmatter `version`, plus the minimum CLI surface the skill claims to cover                                                                        | skill `1.1.0`; README still claims a `v0.8.0` surface (known drift, reconciled by wave-2) |
 
 The check compares this exact JSON shape with strict equality; any mismatch
 fails the gate:
@@ -144,8 +144,9 @@ Check procedure (normative for the wave-2 implementation):
 
 1. **Extract** actuals from pinned checkouts of `carryctx-cli` and
    `carryctx-skills`: parse `package.version` from `Cargo.toml`; read
-   `PACK_FORMAT` / `PACK_FORMAT_VERSION` from `src/domain/pack.rs`; take the
-   maximum migration `version` in `src/adapter/sqlite.rs` and require a
+   `PACK_FORMAT` / `PACK_FORMAT_VERSION` from `crates/carryctx-core/src/domain/pack.rs`
+   (pre-P1 fallback: `src/domain/pack.rs`); take the maximum migration `version`
+   in `src/adapter/sqlite.rs` (`crates/carryctx-sqlite` post-P2) and require a
    matching `migrations/project/NNNN_*.sql` file; parse the skill frontmatter
    `version` and its declared minimum CLI version.
 2. **Compare** field-by-field against the shape above. Unknown fields,

@@ -50,10 +50,10 @@ CLI 入口：
 
 原因：
 
-* 使用 Bun 统一 package manager、runtime、test 和 bundler
-* 直接使用 `bun:sqlite`
-* 减少原生 SQLite 第三方依赖
-* 后续可以生成 standalone executable
+- 使用 Bun 统一 package manager、runtime、test 和 bundler
+- 直接使用 `bun:sqlite`
+- 减少原生 SQLite 第三方依赖
+- 后续可以生成 standalone executable
 
 Bun 当前没有实现 `node:sqlite`，因此 v0.1 不同时维护 `node:sqlite` 与 `bun:sqlite` 两套 Adapter。
 
@@ -90,11 +90,11 @@ v0.1 不使用 ORM。
 
 原因：
 
-* Schema 较稳定且关系明确
-* 需要直接控制 Transaction
-* 需要明确管理 Migration
-* 需要直接使用 SQLite PRAGMA
-* 避免 ORM 抽象增加 CLI 启动成本
+- Schema 较稳定且关系明确
+- 需要直接控制 Transaction
+- 需要明确管理 Migration
+- 需要直接使用 SQLite PRAGMA
+- 避免 ORM 抽象增加 CLI 启动成本
 
 ---
 
@@ -125,16 +125,8 @@ v0.1 不使用 ORM。
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "include": [
-    "src/**/*.ts",
-    "tests/**/*.ts",
-    "*.config.ts"
-  ],
-  "exclude": [
-    "dist",
-    "coverage",
-    ".cache"
-  ]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "*.config.ts"],
+  "exclude": ["dist", "coverage", ".cache"]
 }
 ```
 
@@ -150,7 +142,9 @@ bunx tsc --noEmit
 
 ---
 
-# 5. 源代码结构（历史 v0.1）
+# 5. 源代码结构
+
+## 5.1 历史 v0.1（TypeScript/Bun）
 
 ```text
 carryctx/
@@ -185,31 +179,69 @@ carryctx/
 └── dist/
 ```
 
----
-
-# 6. 架构分层（当前 v0.8；沿用 v0.1 分层原则）
+## 5.2 当前 v0.8.2+ Workspace（4+1 Crates，002-P1 已落地 carryctx-core）
 
 ```text
-CLI Layer
-    ↓
-Application Layer
-    ↓
-Domain Layer
-    ↓
-Repository Interfaces
-    ↓
-Adapters
+carryctx-cli/                  # Cargo workspace root
+├── Cargo.toml                 # [workspace] members = crates/*
+├── crates/
+│   ├── carryctx-core/         # P1 已拆出：domain + repository traits + 纯 application + error
+│   │   └── src/
+│   │       ├── domain/        # Entity / Value Object / 状态机 / 不变量
+│   │       ├── repository/    # 持久化契约（traits），无实现
+│   │       ├── application/   # 纯用例（interchange/progress 等，不触 SQLite/Git/FS）
+│   │       └── error.rs
+│   ├── carryctx-sqlite/       # P2 目标：migrations + repository impl + state.sqlite 持久化
+│   ├── carryctx-vcs/          # P3 目标：VcsBackend + Git Tier1 / jj optional
+│   ├── carryctx-pack/         # P4 目标：ctxpack interchange（manifest/format_version/JSONL）
+│   └── carryctx-cli/          # P5 目标：clap 解析 + commands + rendering + main 二进制
+│       └── src/
+│           ├── commands/
+│           ├── adapter/       # 过渡期仍在根 crate，P2-P3 逐步迁入对应 crates
+│           ├── application/   # 过渡期：含 SQLite/Git/FS 的用例仍在根，P2-P4 后收敛至 core
+│           └── main.rs
+├── migrations/project/
+└── tests/
 ```
+
+> **P1 交付边界（dfecd07）：**仅 `crates/carryctx-core` 已物理隔离并通过 `cargo check --workspace`；`carryctx-sqlite`/`vcs`/`pack`/`cli` 四个 crate 的完整抽离在 P2-P5 按序落地，期间根 `src/` 与 `crates/carryctx-core` 并存，CLI 契约零变化。
+
+---
+
+# 6. 架构分层（当前 v0.8；沿用 v0.1 分层原则，002 起以 workspace crates 物理隔离）
+
+```text
+CLI Layer               crates/carryctx-cli  (clap / commands / rendering / main)
+    ↓
+Application Layer       crates/carryctx-core (纯用例；过渡期部分用例仍在根 src/application)
+    ↓
+Domain Layer            crates/carryctx-core/domain
+    ↓
+Repository Interfaces   crates/carryctx-core/repository  (traits，无实现)
+    ↓
+Adapters                crates/carryctx-sqlite / carryctx-vcs / carryctx-pack / carryctx-cli
+```
+
+Workspace 依赖图（Cargo 强制）：
+
+```text
+core <- sqlite
+core <- vcs
+core <- pack
+{ core, sqlite, vcs, pack } <- cli
+```
+
+`core` 禁止依赖 `rusqlite` / Git / `clap` / terminal / filesystem / network（`reqwest`/`hyper`/`rustls` 等）；仅允许 `serde`/`thiserror`/`ulid`/`chrono` 等纯数据依赖。P1 过渡期 `clap` 仍因 `TaskPriority` 的 `ValueEnum` 保留在 `core`，P5 移出。`sqlite`/`vcs`/`pack` 各自实现 `core` 定义的 traits，`cli` 聚合全部 crates 并提供二进制入口。
 
 ## CLI Layer
 
 负责：
 
-* 参数解析
-* 命令路由
-* 输出格式选择
-* Exit Code
-* 交互提示
+- 参数解析
+- 命令路由
+- 输出格式选择
+- Exit Code
+- 交互提示
 
 不得包含业务状态转换。
 
@@ -217,41 +249,40 @@ Adapters
 
 负责：
 
-* Use Case
-* Transaction 边界
-* 权限检查
-* Entity 协调
-* Event 写入
+- Use Case
+- Transaction 边界
+- 权限检查
+- Entity 协调
+- Event 写入
 
 ## Domain Layer
 
 负责：
 
-* Entity
-* Value Object
-* 状态机
-* Domain Error
-* 业务不变量
+- Entity
+- Value Object
+- 状态机
+- Domain Error
+- 业务不变量
 
-Domain Layer 不得依赖：
+Domain Layer（`crates/carryctx-core`）不得依赖：
 
-* Bun API
-* SQLite
-* Git
-* Terminal
-* 文件系统
+- Bun API
+- SQLite / `rusqlite`
+- Git / `VcsBackend` 具体实现
+- `clap` / Terminal / filesystem / network（P1 过渡期 `clap` 例外见 §6 依赖图注记）
 
 ## Adapter Layer
 
 负责：
 
-* Git CLI
-* SQLite
-* XDG Path
-* TOML
-* Terminal
-* Clock
-* ID Generator
+- Git CLI
+- SQLite
+- XDG Path
+- TOML
+- Terminal
+- Clock
+- ID Generator
 
 v0.8 的实现使用 Rust 模块和 Cargo crate；SQLite adapter 通过
 `rusqlite` 实现，命令入口不得绕过 application/domain/repository 分层直接执行 SQL。
@@ -264,12 +295,12 @@ v0.8 的实现使用 Rust 模块和 Cargo crate；SQLite adapter 通过
 
 Bun 负责：
 
-* 安装依赖
-* Lockfile
-* 执行 TypeScript
-* 运行测试
-* 打包
-* 发布前构建
+- 安装依赖
+- Lockfile
+- 执行 TypeScript
+- 运行测试
+- 打包
+- 发布前构建
 
 统一命令：
 
@@ -301,11 +332,11 @@ Oxfmt 是项目唯一的主要源代码 Formatter。
 
 负责：
 
-* TypeScript
-* JavaScript
-* JSON
-* JSONC
-* Oxc 支持的配置文件
+- TypeScript
+- JavaScript
+- JSON
+- JSONC
+- Oxc 支持的配置文件
 
 配置：
 
@@ -350,13 +381,13 @@ bunx oxlint .
 
 Oxlint 负责：
 
-* Correctness
-* Suspicious Pattern
-* Import
-* Promise
-* Node/Bun Code Quality
-* TypeScript Lint
-* 项目自定义架构规则
+- Correctness
+- Suspicious Pattern
+- Import
+- Promise
+- Node/Bun Code Quality
+- TypeScript Lint
+- 项目自定义架构规则
 
 Oxc 提供 TypeScript/JavaScript parser、linter 和 formatter，并支持独立配置文件。
 
@@ -368,11 +399,11 @@ Biome 不作为主要 Formatter，也不作为主要 JS/TS Linter。
 
 Biome 仅负责：
 
-* Assist
-* Import Organization
-* 补充结构检查
-* 编辑器辅助
-* Oxc 暂未覆盖的有限规则
+- Assist
+- Import Organization
+- 补充结构检查
+- 编辑器辅助
+- Oxc 暂未覆盖的有限规则
 
 `biome.jsonc`：
 
@@ -394,11 +425,7 @@ Biome 仅负责：
     }
   },
   "files": {
-    "includes": [
-      "src/**/*.ts",
-      "tests/**/*.ts",
-      "*.config.ts"
-    ]
+    "includes": ["src/**/*.ts", "tests/**/*.ts", "*.config.ts"]
   }
 }
 ```
@@ -532,13 +559,13 @@ bunx markdownlint-cli2 "**/*.md" "#node_modules" "#dist"
 
 Markdownlint 负责：
 
-* 标题层级
-* 空行
-* 列表风格
-* Code Fence
-* 行尾空格
-* 链接格式
-* 文档结构一致性
+- 标题层级
+- 空行
+- 列表风格
+- Code Fence
+- 行尾空格
+- 链接格式
+- 文档结构一致性
 
 Markdown 不由 Oxfmt 强制格式化。
 
@@ -548,11 +575,11 @@ Markdown 不由 Oxfmt 强制格式化。
 
 Knip 用于检测：
 
-* 未使用依赖
-* 未使用 devDependencies
-* 未使用文件
-* 未使用 Export
-* 未使用 Type
+- 未使用依赖
+- 未使用 devDependencies
+- 未使用文件
+- 未使用 Export
+- 未使用 Type
 
 命令：
 
@@ -572,12 +599,12 @@ Knip 在 CI 中必须执行。
 
 允许通过配置显式声明：
 
-* CLI Entry
-* Migration Entry
-* Test Fixture
-* Dynamic Import
-* Skill Resource
-* Package Export
+- CLI Entry
+- Migration Entry
+- Test Fixture
+- Dynamic Import
+- Skill Resource
+- Package Export
 
 不得通过大量全局 ignore 使 Knip 失去作用。
 
@@ -687,12 +714,12 @@ actionlint
 
 它用于检查 GitHub Actions 的：
 
-* YAML Syntax
-* Expression
-* Matrix
-* Action Input
-* Shell Script
-* Workflow Schema
+- YAML Syntax
+- Expression
+- Matrix
+- Action Input
+- Shell Script
+- Workflow Schema
 
 Actionlint 可以自动发现仓库中的 Workflow 并检查错误。
 
@@ -838,41 +865,41 @@ tests/helpers/
 
 覆盖：
 
-* Domain State Machine
-* Config Merge
-* Task Dependency
-* Context Ranking
-* Error Mapping
-* Path Resolution
+- Domain State Machine
+- Config Merge
+- Task Dependency
+- Context Ranking
+- Error Mapping
+- Path Resolution
 
 ## Integration Test
 
 使用临时 Git repository 测试：
 
-* `carryctx init`
-* Git common directory
-* 多 worktree
-* SQLite transaction
-* Checkpoint
-* Resume
-* Task claim race
-* Database migration
+- `carryctx init`
+- Git common directory
+- 多 worktree
+- SQLite transaction
+- Checkpoint
+- Resume
+- Task claim race
+- Database migration
 
 ## CLI Snapshot Test
 
 测试：
 
-* Human-readable output
-* JSON output
-* Error output
-* Exit Code
+- Human-readable output
+- JSON output
+- Error output
+- Exit Code
 
 Snapshot 中不得包含：
 
-* 绝对用户路径
-* 随机时间
-* 不稳定 ULID
-* 平台特定分隔符
+- 绝对用户路径
+- 随机时间
+- 不稳定 ULID
+- 平台特定分隔符
 
 需要通过 Fixture Normalizer 归一化。
 
@@ -932,10 +959,10 @@ CI 要求。v0.8 的发布 workflow 使用 `cargo build --release --locked` 构�
 
 只运行快速检查：
 
-* Oxfmt Check
-* Oxlint staged files
-* Markdownlint staged Markdown
-* Biome Assist Check
+- Oxfmt Check
+- Oxlint staged files
+- Markdownlint staged Markdown
+- Biome Assist Check
 
 目标时间：
 
@@ -951,24 +978,24 @@ CI 要求。v0.8 的发布 workflow 使用 `cargo build --release --locked` 构�
 
 运行：
 
-* Typecheck
-* Unit Test
-* Oxlint
+- Typecheck
+- Unit Test
+- Oxlint
 
 ## CI
 
 运行完整：
 
-* Format
-* Typecheck
-* Lint
-* Biome
-* Markdownlint
-* Knip
-* Unit Test
-* Integration Test
-* Actionlint
-* Package Smoke Test
+- Format
+- Typecheck
+- Lint
+- Biome
+- Markdownlint
+- Knip
+- Unit Test
+- Integration Test
+- Actionlint
+- Package Smoke Test
 
 Git Hook 不能替代 CI。
 
@@ -1023,17 +1050,17 @@ just release-check
 
 必须通过：
 
-* Clean Git Worktree
-* Format
-* Typecheck
-* Lint
-* Markdownlint
-* Knip
-* Tests
-* Actionlint
-* Package Smoke Test
-* Version Consistency
-* Changelog Check
+- Clean Git Worktree
+- Format
+- Typecheck
+- Lint
+- Markdownlint
+- Knip
+- Tests
+- Actionlint
+- Package Smoke Test
+- Version Consistency
+- Changelog Check
 
 npm 包必须包含：
 
@@ -1081,35 +1108,35 @@ Cargo crate、GitHub Releases 原生二进制和平台包为准；npm 仅作为�
 
 一个功能完成必须满足：
 
-* 需求已实现
-* Domain Test 已添加
-* Integration Test 已添加
-* JSON Output 已定义
-* Error Code 已定义
-* 文档已更新
-* `just check` 通过
-* `just package` 通过
-* 没有新增 Knip 问题
-* 没有未解释的 Lint Ignore
-* Commit 符合 Conventional Commits
+- 需求已实现
+- Domain Test 已添加
+- Integration Test 已添加
+- JSON Output 已定义
+- Error Code 已定义
+- 文档已更新
+- `just check` 通过
+- `just package` 通过
+- 没有新增 Knip 问题
+- 没有未解释的 Lint Ignore
+- Commit 符合 Conventional Commits
 
 ---
 
 # 17. 最终工具职责矩阵（历史 v0.1）
 
-| 工具 | 唯一职责 |
-| ----------------- | -------------------------- |
-| TypeScript | 类型检查 |
-| Bun | Runtime、Package、Test、Build |
-| Oxfmt | 主要 Formatter |
-| Oxlint | 主要 JS/TS Linter |
-| Biome | Assist 与补充检查 |
-| Lefthook | Git Hook 管理 |
-| Commitlint | Commit Message |
-| Markdownlint CLI2 | Markdown |
-| Knip | 未使用代码和依赖 |
-| Actionlint | GitHub Actions 静态检查 |
-| act | 本地 Workflow 预检 |
-| just | 统一开发命令入口 |
+| 工具              | 唯一职责                      |
+| ----------------- | ----------------------------- |
+| TypeScript        | 类型检查                      |
+| Bun               | Runtime、Package、Test、Build |
+| Oxfmt             | 主要 Formatter                |
+| Oxlint            | 主要 JS/TS Linter             |
+| Biome             | Assist 与补充检查             |
+| Lefthook          | Git Hook 管理                 |
+| Commitlint        | Commit Message                |
+| Markdownlint CLI2 | Markdown                      |
+| Knip              | 未使用代码和依赖              |
+| Actionlint        | GitHub Actions 静态检查       |
+| act               | 本地 Workflow 预检            |
+| just              | 统一开发命令入口              |
 
 任何新工具加入前，必须说明它是否与现有职责重叠。
