@@ -63,7 +63,14 @@ Create `package.json` with the approved scoped package and exact dependency vers
   "packageManager": "bun@1.3.14",
   "engines": { "bun": ">=1.3.14" },
   "bin": { "carryctx": "./dist/cli.js" },
-  "files": ["dist", "migrations", "skills", "templates", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "migrations",
+    "skills",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "bun run src/cli.ts",
     "build": "bun build src/cli.ts --target=bun --outfile=dist/cli.js",
@@ -408,7 +415,7 @@ git commit -m "feat(init): initialize recoverable shared project state"
 
 - Modify: `README.md`
 - Create: `tests/integration/package/package-smoke.test.ts`
-- Create locally without committing: `../tmp/reports/2026-07-22-foundation-test-report.md`
+- Create locally without committing: `../recording/reports/2026-07-22-foundation-test-report.md`
 
 - [ ] **Step 1: Write a failing package smoke test**
 
@@ -432,7 +439,7 @@ Expected: format, typecheck, lint, docs, Knip, unit, integration, Actionlint, bu
 
 - [ ] **Step 5: Record evidence**
 
-Create the local-only report with the date, Bun/TypeScript/Git versions, commit, commands, test counts, AC-001 evidence, linked-worktree evidence, known platform limits, and the explicit list of later v0.1 units. Keep it under workspace `tmp/` and do not add it to any Git repository.
+Create the local-only report with the date, Bun/TypeScript/Git versions, commit, commands, test counts, AC-001 evidence, linked-worktree evidence, known platform limits, and the explicit list of later v0.1 units. Keep it under workspace `recording/` and do not add it to any Git repository.
 
 - [ ] **Step 6: Commit milestone documentation**
 

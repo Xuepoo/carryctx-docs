@@ -12,7 +12,7 @@ This repository is the source of truth for the CarryCtx product, CLI contracts, 
 - Treat JSON envelopes, exit codes, command names, and configuration keys as public contracts.
 - Label features as v0.1, P1, P2, experimental, or future consistently across documents.
 - Prefer concrete examples, explicit invariants, and testable acceptance criteria.
-- Do not store temporary logs or generated package artifacts here; place them in `../tmp/`.
+- Do not store temporary logs or generated package artifacts here; place them in `../recording/`.
 - Test reports committed under `reports/` must include commands, dates, tool versions, outcomes, and any known gaps.
 
 ## Change coupling

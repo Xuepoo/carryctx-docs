@@ -1,35 +1,66 @@
 # CarryCtx Roadmap
 
-## v0.1 — Local continuity loop
+CarryCtx is a local-first lifecycle and control layer for coding agents and
+human developers: durable project state, agent and team lifecycle, and
+portable offline state. It is not an agent harness, not a cloud sync service,
+and not a TODO list. The core binary never initiates network connections
+(see `architecture/zero-network-policy.md`); moving state between machines is
+local `export` / `import` composed with user-chosen transport
+(see `architecture/state-transport-boundary.md`).
 
-The first release establishes a complete offline workflow for coding agents and human developers:
+## Where we are (v0.8.2)
 
-1. Initialize a Git project and shared SQLite state.
-2. Register an agent, create and claim a task, and start a session.
-3. Track structured progress and Git-aware checkpoints.
-4. End and resume work across terminals, agents, and linked worktrees.
-5. Inspect deterministic project context, status, events, dependencies, and conflicts.
-6. Diagnose stale or inconsistent state and migrate or back up the database safely.
-7. Package the CLI and its generic Agent Skill for npm distribution.
+- Runtime truth: a Rust CLI over a SQLite project state at
+  `<git-common-dir>/carryctx/state.sqlite`, shared by linked worktrees.
+- Three separated layers: SQLite persistence, ctxpack-dir interchange
+  (`manifest.json` plus JSONL via `carryctx export` / `carryctx import`),
+  and external transport (Git, SSH, NAS, Syncthing, rclone).
+- Shipped surface: tasks and dependencies, sessions, checkpoints, teams,
+  worktrees, handoffs, decisions, context graph, append-only event audit,
+  presets, MCP stdio server, local-only `sync push` / `pull`, and ctxpack
+  dir v1 (replace-import with conflict refusal; merge deferred).
+- History lives in `CHANGELOG.md`, verification evidence in `reports/`,
+  and design records in `design/`.
 
-The v0.1 completion gate is AC-001 through AC-012 in `requirements.md`, plus the engineering Definition of Done.
+## Direction
 
-## v0.2 — Extensibility
+Stability over breadth. Near-term investment goes to protocol stability, the
+hooks extension boundary, cross-repo consistency, and ctxpack hardening —
+not to new command breadth. Every proposed Core capability must pass the
+state-transport boundary test before it is accepted.
 
-- Stabilize a plugin contract after real v0.1 usage.
-- Move or synchronize the generic skill with the standalone `carryctx-skills` repository.
-- Add provider-specific skill guidance without relying on private Agent APIs.
-- Improve export/import and shell completion.
-- Expand macOS coverage and prepare Windows path behavior.
+## Near milestones
 
-## Later releases
+1. **Contract stability.** Pin the four contract versions (CLI, ctxpack
+   format, DB schema, skill surface) as machine-readable metadata with CI
+   comparison. The shape and check procedure are specified in
+   `architecture/state-transport-boundary.md` §7; the check itself is
+   implemented as CLI-repo work.
+2. **Lifecycle hooks.** Land the hooks design (CTX-0010: CarryCtx lifecycle
+   layer versus Git hooks, with trust, timeout, reentrancy, and failure
+   policy), then implement. Backup, sync, notification, and CI compositions
+   build on hooks — without network code in Core.
+3. **ctxpack v1 hardening.** Export profiles and privacy review (hostname,
+   paths, agent names, task text), machine-local field audit, and
+   diff/inspection UX. Run real multi-machine flows first; decide
+   per-entity merge semantics from observed conflicts before designing merge.
+4. **Single user-manual source of truth.** `manual/` is normative; the
+   website manual generates or syncs from it (website-repo work). The
+   remaining docs-side step is pointing the lifecycle manual at
+   `export` / `import`.
 
-- ~~MCP adapter~~ — shipped as `carryctx mcp`, a subcommand of `carryctx-cli` (not a separate adapter package). See `carryctx-cli/src/application/mcp.rs`.
-- Explicit remote synchronization adapters
-- Multi-repository projects
-- GitHub Issue and Pull Request synchronization
-- Website and optional local dashboard
-- Code impact and richer indexing adapters
-- ~~Jujutsu (jj) colocated-repository compatibility~~ — shipped (Phases 1-4). See `plans/2026-07-25-jujutsu-compatibility.md` for what was verified against a real jj installation and why Phase 3 landed as a detect-and-refuse guard rather than a `jj workspace add` integration.
+## Explicitly later
 
-These later items must remain optional and must not compromise the local-first, offline CLI.
+- Semantic merge, three-way merge, and DAG (`parents` and `sequences` are
+  already reserved in the v1 manifest), plus `snapshot log` / `diff` and
+  `conflict list` / `show` / `resolve`.
+- Multi-repository projects — only if the design passes the boundary test,
+  and still with no network in Core.
+
+## Non-goals (binding)
+
+- No network code in the core binary: no remote sync adapters, no GitHub
+  Issue or Pull Request synchronization, no cloud sync service, and no
+  preset registry or marketplace in Core (preset fetching is a user-run
+  `git clone` plus local `preset install`).
+- No second user-manual source of truth.

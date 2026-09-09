@@ -2,7 +2,7 @@
 
 ## Repository boundaries
 
-CarryCtx uses independent sibling repositories. Run Git and build commands from the repository they affect. The workspace root only routes work and holds disposable `tmp/` artifacts.
+CarryCtx uses independent sibling repositories. Run Git and build commands from the repository they affect. The workspace root only routes work and holds disposable `recording/` artifacts.
 
 The current delivery order is:
 

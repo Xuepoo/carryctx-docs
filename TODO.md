@@ -1,49 +1,61 @@
-# CarryCtx Master TODO & Roadmap
+# CarryCtx TODO (short/mid-term)
 
-This document serves as the master plan for the CarryCtx ecosystem, moving from a simple state tracker to the universal "Git of Agent Context."
+Only genuinely outstanding work. Shipped items live in `CHANGELOG.md`,
+verification evidence in `reports/`, design records in `design/`, and
+long-term invariants in `architecture/`. `ROADMAP.md` sets direction;
+`architecture/state-transport-boundary.md` decides what may enter Core.
 
-## P1: Improve Determinism & Ecosystem Foundations
+## Contract stability
 
-These tasks focus on establishing the standard for Presets and eliminating ambiguity in rules and workflows.
+- [ ] Implement the version-metadata CI check specified in
+      `architecture/state-transport-boundary.md` §7 (CLI-repo work): extract the
+      CLI, ctxpack-format, DB-schema, and skill-surface values from their sources
+      of truth, compare the exact JSON shape, and fail on drift. Reconcile the
+      known `use-carryctx` drift (skill frontmatter `1.1.0` versus a README that
+      still claims a `v0.8.0` surface).
 
-- [x] **Design `preset.schema.json`**: Create a declarative schema for Capability Packs (Profiles, Rules, Workflows, Permissions).
-- [x] **Define Instruction Precedence**: Document and enforce strict precedence (Platform Policy > User Instruction > Project Rules).
-- [x] **Implement `carryctx preset` commands**:
-  - `carryctx preset install <name>`
-  - `carryctx preset activate <name>`
-  - `carryctx preset list`
-- [x] **Integrate Workflow State into Core**: (Skipped: Decided to keep workflow step execution delegated to the agent's prompt reading skill).
-- [x] **Supply Chain Security**: Add permission manifests, integrity hashes (SHA-256), and `.carryctx/presets.lock`.
+## Lifecycle hooks
 
-## P2: Platform Capability & Plugin Ecosystem
+- [ ] Land design CTX-0010 (owner: doc-2, in progress), then implement trust,
+      timeout, output limits, reentrancy guards, and failure policy.
 
-These tasks focus on delivering CarryCtx to various IDEs and Agent environments natively via `carryctx-plugins`.
+## ctxpack v1 hardening (before any merge semantics)
 
-- [x] **Architect `mcp-server-carryctx`**: Build the unified Model Context Protocol server exposing `carryctx-cli` commands as tools.
-- [x] **Claude Code Adapter**: Create the specific `.claude-plugin/plugin.json` generator.
-- [x] **Cursor Adapter**: Create the `.cursor-plugin/plugin.json` generator and compile our Markdown rules into Cursor `.mdc` format.
-- [x] **OpenCode Adapter**: Build the TypeScript runtime adapter for `@opencode-ai/plugin`.
+- [ ] Export profiles and privacy review: hostname, paths, agent names, and
+      task text in the manifest source block and JSONL.
+- [ ] Machine-local field audit: worktree paths,
+      `sessions.working_directory`, and re-anchor plus prune warnings.
+- [ ] Diff and inspection UX for bundles before import.
 
-## Phase 2: Context Graph
+## Docs single source of truth
 
-Evolving from a linear state machine to a semantic graph of the project.
+- [ ] Point `manual/2-cli-reference/1-project-lifecycle.md` at `export` /
+      `import` (ctxpack dir v1); the website manual generates or syncs from
+      `manual/` (website-repo work).
 
-- [ ] **Design Context Graph Schema**: Define nodes (file, module, decision, bug, task, agent) and edges (depends, changed, fixed, related).
-- [ ] **Graph Queries**: Allow agents to query "Why was this file changed?" or "What tasks depend on this module?".
+## Carried-over correctness items (verified still open 2026-09-09: no callers in `carryctx-cli/src`)
 
-## Phase 3: Agent Team Memory
+- [ ] Wire `touch_activity`: `sessions.last_activity_at` never advances
+      because nothing calls it. Decide call sites (progress note, checkpoint,
+      resume, periodic) and whether `stats` shows tracked time versus span.
+- [ ] `mark_stale_sessions` is dead code (`application/session.rs`): never
+      invoked, so stale sessions are never auto-marked. Call it on `resume` and
+      `session start` with the config's `stale_after`.
+- [ ] Release workflow `Build (${{ matrix.target }})` renders as `skipping`
+      on PRs — the matrix template does not resolve for PR checks. Fix the
+      workflow so the build gate actually reports (CLI-repo workflow).
 
-Scaling from single-agent contexts to multi-agent swarms.
+## Retired from this list
 
-- [ ] **Subagent Shared State**: Enable Planner, Developer, Reviewer, and Tester agents to seamlessly pass `carryctx` context pointers without copying massive prompts.
-
-## Phase 4: The Ultimate Vision
-
-- [ ] **Native Integration**: Achieve out-of-the-box standard integration in major LLM tooling.
-- [ ] **Preset Marketplace**: Launch a decentralized registry for CarryCtx Presets, heavily audited for security.
-
-## Follow-ups from 0.5.0 triage (2026-08-10, see reports/)
-
-- [ ] **Wire `touch_activity`**: `sessions.last_activity_at` equals `started_at` on every session in vectojs — nothing calls `touch_activity`, so session timing (and the `stale_after` staleness rule) have no data to work from. Decide where to call it (progress note, checkpoint, resume, periodic) and whether `stats` should show tracked time vs. span.
-- [ ] **`mark_stale_sessions` is dead code**: defined in `application/session.rs` but never invoked by any command; stale sessions are never auto-marked. Call it on `resume`/`session start` (with the config's `stale_after`).
-- [ ] **Release workflow `Build (${{ matrix.target }})` check** renders as `skipping` on PRs — the matrix template does not resolve for PR checks; fix the workflow so the build gate actually reports.
+- P1 preset schema, instruction precedence, `preset` commands, and the
+  supply-chain lockfile: shipped.
+- P2 MCP server and IDE adapters (`carryctx mcp` over stdio): shipped.
+- Phase 2 context-graph schema and queries (`graph add-node` / `link` /
+  `edges` / `extract-deps` / `scan` / `export`, plus `graph_nodes` /
+  `graph_edges` in Core and in ctxpack): shipped. Any remaining graph work
+  is hardening, not greenfield design.
+- Phase 3 subagent shared state (`team`, `handoff`, task dependencies, ready
+  queue): shipped as Core coordination records.
+- Phase 4 marketplace and native-integration vision, plus the remote-sync
+  and GitHub-sync roadmap items: removed as Core scope — inconsistent with
+  the zero-network invariant (see the ADR §6 non-goals).

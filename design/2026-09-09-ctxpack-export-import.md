@@ -26,7 +26,7 @@
 
 ## 2. Interchange layout v1 (`--format dir`)
 
-```
+```text
 <export-dir>/
 ├── manifest.json
 ├── project.json
@@ -132,7 +132,7 @@ JSON errors go to stderr; `--dry-run` never writes SQLite, git, or config.
 
 - Unit: manifest validate/reject matrix, sequences reconcile (`max+1`), re-anchor pure functions, error mapping.
 - Integration (temp git repos, no network): fresh-import, replace-refuse, replace-apply, tamper-matrix, dry-run-cleanliness, stdout-pipe round-trip.
-- Self-hosted git end-to-end via podman (user-provided): bring up a local git host (e.g. Gitea/Forgejo container), `git clone` on two client mounts, carry `.carryctx/config.toml` through git, carry state through `export --stdout | ssh/import` or a shared volume standing in for NAS/Syncthing; assert AC1–AC4 across hosts. Container definitions live under workspace `tmp/` (never in product repos) and are documented in the verification report under `reports/`.
+- Self-hosted git end-to-end via podman (user-provided): bring up a local git host (e.g. Gitea/Forgejo container), `git clone` on two client mounts, carry `.carryctx/config.toml` through git, carry state through `export --stdout | ssh/import` or a shared volume standing in for NAS/Syncthing; assert AC1–AC4 across hosts. (`carryctx-cli/src/commands/sync.rs:11`, `:17`). Container definitions live under workspace `recording/` (never in product repos) and are documented in the verification report under `reports/`.
 
 ## 9. Review and 0.8.2 release gate (2026-09-09 addendum)
 
@@ -145,6 +145,6 @@ JSON errors go to stderr; `--dry-run` never writes SQLite, git, or config.
 - T1 (docs, done here): this design + `cli-specification.md` delta.
 - T2 (export): `export --format dir`, manifest builder, `project.exported` event, `--dry-run/--stdout`.
 - T3 (import fresh + replace): bundle validator, candidate-build + restore-journal swap, re-anchor + worktree prune, `--dry-run` diff.
-- T4 (tests): unit + integration matrix + podman Gitea e2e harness in `tmp/`.
+- T4 (tests): unit + integration matrix + podman Gitea e2e harness in `recording/`.
 - T5 (docs sync): `cli-specification.md`, `README`, skills preset notes; `reports/` verification record.
 - Dependencies: T3 on T2's reader/validator; T4 spans T2–T3; T5 last. `--merge`/DAG reserved for a follow-up design.
