@@ -192,7 +192,7 @@ carryctx-cli/                  # Cargo workspace root
 │   │       ├── application/   # 纯用例（interchange/progress 等，不触 SQLite/Git/FS）
 │   │       └── error.rs
 │   ├── carryctx-sqlite/       # P2 已拆出：migrations + repository impl + state.sqlite 持久化（WAL/backup/journal）
-│   ├── carryctx-vcs/          # P3 目标：VcsBackend + Git Tier1 / jj optional
+│   ├── carryctx-vcs/          # P3 已拆出：VcsBackend + Git Tier1 / jj optional runtime backend (capabilities)
 │   ├── carryctx-pack/         # P4 目标：ctxpack interchange（manifest/format_version/JSONL）
 │   └── carryctx-cli/          # P5 目标：clap 解析 + commands + rendering + main 二进制
 │       └── src/
@@ -205,6 +205,8 @@ carryctx-cli/                  # Cargo workspace root
 ```
 
 > **P2 交付边界（carryctx-sqlite）：**`crates/carryctx-sqlite` 已物理隔离并通过 `cargo check --workspace` / `cargo test --workspace`；`src/adapter/sqlite*.rs`、`src/adapter/unit_of_work.rs`、`src/repository/graph.rs|search.rs` 在根 crate 保留为 thin re-export 桥接，CLI 契约零变化。`carryctx-core` 保持纯域（P1），`carryctx-sqlite` 拥有迁移/WAL/backup/journal 及 repository 实现。
+>
+> **P3 交付边界（carryctx-vcs）：**`crates/carryctx-vcs` 已物理隔离并通过 `cargo check --workspace`（4 members）/ `cargo test --workspace`；`src/adapter/git.rs`、`src/adapter/xdg.rs` 在根 crate 保留为 thin re-export 桥接，`VcsBackend { kind/repository_root/head/status/create_workspace/capabilities }` + `VcsCapabilities { workspaces, commit_hooks, staging_area, mutable_changes }`（Git Tier 1 / jj optional runtime `Command::new("jj")` 无 Cargo feature 矩阵，`auto` 规则 `.jj` 存在则 JjBackend 否则 Git），CLI 契约零变化（`carryctx worktree --help` 保持不变，capability 感知行为由 backend 分发）。
 
 ---
 
