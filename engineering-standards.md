@@ -193,12 +193,12 @@ carryctx-cli/                  # Cargo workspace root
 │   │       └── error.rs
 │   ├── carryctx-sqlite/       # P2 已拆出：migrations + repository impl + state.sqlite 持久化（WAL/backup/journal）
 │   ├── carryctx-vcs/          # P3 已拆出：VcsBackend + Git Tier1 / jj optional runtime backend (capabilities)
-│   ├── carryctx-pack/         # P4 目标：ctxpack interchange（manifest/format_version/JSONL）
+│   ├── carryctx-pack/         # P4 已拆出：ctxpack interchange（manifest/format_version/JSONL/validation/migration/checksum/reader-writer, core-only）
 │   └── carryctx-cli/          # P5 目标：clap 解析 + commands + rendering + main 二进制
 │       └── src/
 │           ├── commands/
 │           ├── adapter/       # 过渡期仍在根 crate，P3 后 SQLite 相关迁入 carryctx-sqlite
-│           ├── application/   # 过渡期：含 Git/FS 的用例仍在根，P3-P4 后收敛至 core/pack
+│           ├── application/   # 过渡期：含 Git/FS 的用例仍在根，P4 后 pack 相关收敛至 carryctx-pack
 │           └── main.rs
 ├── migrations/project/        # SQL 源码；编译期通过 carryctx-sqlite 嵌入（include_str!）
 └── tests/
@@ -207,6 +207,8 @@ carryctx-cli/                  # Cargo workspace root
 > **P2 交付边界（carryctx-sqlite）：**`crates/carryctx-sqlite` 已物理隔离并通过 `cargo check --workspace` / `cargo test --workspace`；`src/adapter/sqlite*.rs`、`src/adapter/unit_of_work.rs`、`src/repository/graph.rs|search.rs` 在根 crate 保留为 thin re-export 桥接，CLI 契约零变化。`carryctx-core` 保持纯域（P1），`carryctx-sqlite` 拥有迁移/WAL/backup/journal 及 repository 实现。
 >
 > **P3 交付边界（carryctx-vcs）：**`crates/carryctx-vcs` 已物理隔离并通过 `cargo check --workspace`（4 members）/ `cargo test --workspace`；`src/adapter/git.rs`、`src/adapter/xdg.rs` 在根 crate 保留为 thin re-export 桥接，`VcsBackend { kind/repository_root/head/status/create_workspace/capabilities }` + `VcsCapabilities { workspaces, commit_hooks, staging_area, mutable_changes }`（Git Tier 1 / jj optional runtime `Command::new("jj")` 无 Cargo feature 矩阵，`auto` 规则 `.jj` 存在则 JjBackend 否则 Git），CLI 契约零变化（`carryctx worktree --help` 保持不变，capability 感知行为由 backend 分发）。
+>
+> **P4 交付边界（carryctx-pack）：**`crates/carryctx-pack` 已物理隔离并通过 `cargo check --workspace`（5 members）/ `cargo test --workspace`；`src/domain/pack.rs` + `src/application/interchange.rs` 在根 crate 保留为 thin re-export 桥接（`crate::domain::pack::*` 与 `crate::application::interchange::*` 均透传 `carryctx_pack::{manifest, io}`），`carryctx-pack` 拥有 `manifest/format_version/JSONL` 编码、`validation`（manifest/计数/跨表）、`migration`（`migrate_manifest_value`，v1 无前向迁移仅版本门控）、`checksum`（`sha256_hex`/`checksum_reader`/`checksum_writer` 流式摘要）、`reader/writer`（`read_bundle`/`write_bundle`/`read_table_file`/`write_table_file`，fail-closed，含 `pack::prune_worktrees`/`reanchor_project`），依赖仅 `carryctx-core`（`serde`/`chrono`/`sha2`/`hex`），无 `rusqlite`/`git2`/`clap`/network，CLI 契约零变化（`carryctx export --pack-format dir --help` / `carryctx import --help` 保持不变；`export.rs`/`import.rs` 仍在根 crate 持有 SQLite/Git 侧事务逻辑，P4 仅抽取纯 interchange 层）。
 
 ---
 
