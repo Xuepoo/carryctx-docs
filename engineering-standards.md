@@ -179,27 +179,28 @@ carryctx/
 └── dist/
 ```
 
-## 5.2 当前 v0.8.2+ Workspace（4+1 Crates，002-P1 已落地 carryctx-core）
+## 5.2 当前 v0.8.2+ Workspace（4+1 Crates，002 完成）
 
 ```text
 carryctx-cli/                  # Cargo workspace root
-├── Cargo.toml                 # [workspace] members = crates/*
+├── Cargo.toml                 # [workspace] members = 5 (core/sqlite/vcs/pack/cli) + 根 `carryctx` facades
 ├── crates/
-│   ├── carryctx-core/         # P1 已拆出：domain + repository traits + 纯 application + error
+│   ├── carryctx-core/         # P1: domain + repository traits + 纯 application + error (无 clap/rusqlite/Git/FS/network)
 │   │   └── src/
 │   │       ├── domain/        # Entity / Value Object / 状态机 / 不变量
 │   │       ├── repository/    # 持久化契约（traits），无实现
 │   │       ├── application/   # 纯用例（interchange/progress 等，不触 SQLite/Git/FS）
 │   │       └── error.rs
-│   ├── carryctx-sqlite/       # P2 已拆出：migrations + repository impl + state.sqlite 持久化（WAL/backup/journal）
-│   ├── carryctx-vcs/          # P3 已拆出：VcsBackend + Git Tier1 / jj optional runtime backend (capabilities)
-│   ├── carryctx-pack/         # P4 已拆出：ctxpack interchange（manifest/format_version/JSONL/validation/migration/checksum/reader-writer, core-only）
-│   └── carryctx-cli/          # P5 目标：clap 解析 + commands + rendering + main 二进制
+│   ├── carryctx-sqlite/       # P2: migrations + repository impl + state.sqlite 持久化（WAL/backup/journal）
+│   ├── carryctx-vcs/          # P3: VcsBackend + Git Tier1 / jj optional runtime backend (capabilities)
+│   ├── carryctx-pack/         # P4: ctxpack interchange（manifest/format_version/JSONL/validation/migration/checksum/reader-writer, core-only）
+│   └── carryctx-cli/          # P5: clap 解析 + adapter (config/filesystem/terminal) + application wiring + output + 剩余 application/use-cases
 │       └── src/
-│           ├── commands/
-│           ├── adapter/       # 过渡期仍在根 crate，P3 后 SQLite 相关迁入 carryctx-sqlite
-│           ├── application/   # 过渡期：含 Git/FS 的用例仍在根，P4 后 pack 相关收敛至 carryctx-pack
-│           └── main.rs
+│           ├── adapter/       # config/filesystem/terminal + sqlite/git/xdg re-exports
+│           ├── application/   # remaining imperative use-cases (wired via sqlite/vcs)
+│           ├── output.rs      # rendering + envelopes
+│           └── error bridge   # re-export core error
+├── src/                       # 根 `carryctx` thin facade: `pub use carryctx_cli::*` + `carryctx_core/vcs/pack` re-exports, binary `src/main.rs` 保留 Cli dispatch (零契约变化)
 ├── migrations/project/        # SQL 源码；编译期通过 carryctx-sqlite 嵌入（include_str!）
 └── tests/
 ```
@@ -209,15 +210,17 @@ carryctx-cli/                  # Cargo workspace root
 > **P3 交付边界（carryctx-vcs）：**`crates/carryctx-vcs` 已物理隔离并通过 `cargo check --workspace`（4 members）/ `cargo test --workspace`；`src/adapter/git.rs`、`src/adapter/xdg.rs` 在根 crate 保留为 thin re-export 桥接，`VcsBackend { kind/repository_root/head/status/create_workspace/capabilities }` + `VcsCapabilities { workspaces, commit_hooks, staging_area, mutable_changes }`（Git Tier 1 / jj optional runtime `Command::new("jj")` 无 Cargo feature 矩阵，`auto` 规则 `.jj` 存在则 JjBackend 否则 Git），CLI 契约零变化（`carryctx worktree --help` 保持不变，capability 感知行为由 backend 分发）。
 >
 > **P4 交付边界（carryctx-pack）：**`crates/carryctx-pack` 已物理隔离并通过 `cargo check --workspace`（5 members）/ `cargo test --workspace`；`src/domain/pack.rs` + `src/application/interchange.rs` 在根 crate 保留为 thin re-export 桥接（`crate::domain::pack::*` 与 `crate::application::interchange::*` 均透传 `carryctx_pack::{manifest, io}`），`carryctx-pack` 拥有 `manifest/format_version/JSONL` 编码、`validation`（manifest/计数/跨表）、`migration`（`migrate_manifest_value`，v1 无前向迁移仅版本门控）、`checksum`（`sha256_hex`/`checksum_reader`/`checksum_writer` 流式摘要）、`reader/writer`（`read_bundle`/`write_bundle`/`read_table_file`/`write_table_file`，fail-closed，含 `pack::prune_worktrees`/`reanchor_project`），依赖仅 `carryctx-core`（`serde`/`chrono`/`sha2`/`hex`），无 `rusqlite`/`git2`/`clap`/network，CLI 契约零变化（`carryctx export --pack-format dir --help` / `carryctx import --help` 保持不变；`export.rs`/`import.rs` 仍在根 crate 持有 SQLite/Git 侧事务逻辑，P4 仅抽取纯 interchange 层）。
+>
+> **P5 交付边界（carryctx-cli）：**`crates/carryctx-cli` 已物理隔离并通过 `cargo check --workspace`（5 members + 根 `carryctx`）/ `cargo test --workspace` / `cargo clippy --workspace -- -D warnings` / `cargo fmt --check`；`clap::ValueEnum` 已从 `carryctx_core::domain::task::TaskPriority` 抽离至 `carryctx_cli::commands::task::TaskPriority`（CLI enum translation，域保持纯 `serde`/`Default`），`crates/carryctx-cli` 拥有 `adapter`（`config`/`filesystem`/`terminal` + `sqlite`/`git`/`xdg` re-exports）、剩余 `application`（`agent`/`task`/`session`/`worktree`/`cleanup` 等 imperative wiring）、`output.rs` 与 `error` bridge；根 `carryctx`（`src/lib.rs` + `src/main.rs` + `Cargo.toml` workspace）保留为 thin facade `pub use carryctx_cli::*`/`carryctx_core`/`vcs`/`pack` re-exports，`cargo tree -p carryctx-core` 无 `rusqlite`/`clap`/`git2`/network，`cargo tree -p carryctx-pack` core-only；002 全部 5 phases 完成，CLI 契约零变化（`carryctx --help` / `carryctx task --help` / `carryctx version --json` / `carryctx export --pack-format dir --help` envelopes/exit codes 不变）。
 
 ---
 
 # 6. 架构分层（当前 v0.8；沿用 v0.1 分层原则，002 起以 workspace crates 物理隔离）
 
 ```text
-CLI Layer               crates/carryctx-cli  (clap / commands / rendering / main)
+CLI Layer               crates/carryctx-cli  (+ 根 `carryctx` facades: clap / commands / rendering / main)
     ↓
-Application Layer       crates/carryctx-core (纯用例；过渡期部分用例仍在根 src/application)
+Application Layer       crates/carryctx-core (纯用例) + crates/carryctx-cli (imperative wiring via sqlite/vcs)
     ↓
 Domain Layer            crates/carryctx-core/domain
     ↓
@@ -233,9 +236,10 @@ core <- sqlite
 core <- vcs
 core <- pack
 { core, sqlite, vcs, pack } <- cli
+根 `carryctx` (binary + lib facade) 依赖 { core, sqlite, vcs, pack, cli }
 ```
 
-`core` 禁止依赖 `rusqlite` / Git / `clap` / terminal / filesystem / network（`reqwest`/`hyper`/`rustls` 等）；仅允许 `serde`/`thiserror`/`ulid`/`chrono` 等纯数据依赖。P1 过渡期 `clap` 仍因 `TaskPriority` 的 `ValueEnum` 保留在 `core`，P5 移出。`sqlite`/`vcs`/`pack` 各自实现 `core` 定义的 traits，`cli` 聚合全部 crates 并提供二进制入口。
+`core` 禁止依赖 `rusqlite` / Git / `clap` / terminal / filesystem / network（`reqwest`/`hyper`/`rustls` 等）；仅允许 `serde`/`thiserror`/`ulid`/`chrono` 等纯数据依赖。P5 已将 `TaskPriority` 的 `clap::ValueEnum` 从 `core` 抽离至 `carryctx_cli::commands::task` 的 CLI enum translation，`core` 达成零 `clap` 纯度（`cargo tree -p carryctx-core` 验证）。`sqlite`/`vcs`/`pack` 各自实现 `core` 定义的 traits，`cli` 聚合全部 crates 并提供 library 能力，根 `carryctx` 作为 workspace facades 与二进制入口聚合 `cli`。
 
 ## CLI Layer
 
