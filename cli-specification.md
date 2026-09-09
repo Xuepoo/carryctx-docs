@@ -1,8 +1,8 @@
 # CarryCtx CLI 命令规范
 
 **文档路径：** `carryctx-docs/cli-specification.md`
-**文档版本：** v0.8.0
-**适用版本：** CarryCtx v0.8.0 / v0.8.x
+**文档版本：** v0.9.0
+**适用版本：** CarryCtx v0.9.0 / v0.9.x
 
 ---
 
@@ -496,8 +496,9 @@ carryctx project export
 carryctx project import
 ```
 
-> 说明：`project export/import` 为保留名称，0.8.2 未实现；同等能力由顶级
+> 说明：`project export/import` 为保留名称（自 0.8.2 起未实现，0.9.0 仍保留）；同等能力由顶级
 > `carryctx export` / `carryctx import`（ctxpack dir v1）提供，见 §12.1。
+> 历史 Gate：0.8.2 为 ctxpack 导出/导入的首次落地版本。
 
 ## `project show`
 
@@ -526,7 +527,7 @@ carryctx project migrate
 
 ---
 
-## 12.1 `carryctx export` / `carryctx import`（0.8.2 起，ctxpack dir v1）
+## 12.1 `carryctx export` / `carryctx import`（0.8.2 起引入，0.9.0 现行，ctxpack dir v1）
 
 离线优先的可移植状态交换格式，与传输方式无关（scp/ssh/NAS/Syncthing/rclone
 均由用户选择，二进制不含网络代码）。SQLite 仍是内部持久化格式；ctxpack

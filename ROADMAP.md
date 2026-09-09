@@ -8,10 +8,11 @@ and not a TODO list. The core binary never initiates network connections
 local `export` / `import` composed with user-chosen transport
 (see `architecture/state-transport-boundary.md`).
 
-## Where we are (v0.8.2)
+## Where we are (v0.9.0)
 
 - Runtime truth: a Rust CLI over a SQLite project state at
   `<git-common-dir>/carryctx/state.sqlite`, shared by linked worktrees.
+- Workspace: Cargo workspace 4+1 (`core` / `sqlite` / `vcs` / `pack` / `cli` + root facade) with zero CLI contract change (002 Complete).
 - Three separated layers: SQLite persistence, ctxpack-dir interchange
   (`manifest.json` plus JSONL via `carryctx export` / `carryctx import`),
   and external transport (Git, SSH, NAS, Syncthing, rclone).

@@ -1,6 +1,6 @@
 # Workspace Crate Split Design (4+1)
 
-**Status:** Accepted (2026-09-09). P1 landed as `dfecd07`; P2 (`carryctx-sqlite`) landed on `refactor/002-P1-core`; P3-P5 tracked as follow-ons.
+**Status:** Shipped in 0.9.0 — Accepted (2026-09-09). P1 landed as `dfecd07`; P2 (`carryctx-sqlite`) landed on `refactor/002-P1-core`; P3-P5 tracked as follow-ons. All P1-P5 landed.
 
 **Date:** 2026-09-09
 

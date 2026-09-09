@@ -12,7 +12,7 @@ long-term invariants in `architecture/`. `ROADMAP.md` sets direction;
       CLI, ctxpack-format, DB-schema, and skill-surface values from their sources
       of truth, compare the exact JSON shape, and fail on drift. Reconcile the
       known `use-carryctx` drift (skill frontmatter `1.1.0` versus a README that
-      still claims a `v0.8.0` surface).
+      still claims a `v0.8.0` surface — now `v0.9.0`; history anchor for 0.8.2 gate in design/2026-09-09-ctxpack-export-import.md §9).
 
 ## Lifecycle hooks
 

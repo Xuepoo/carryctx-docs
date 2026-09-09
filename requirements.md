@@ -2,8 +2,8 @@
 
 **项目名称：** CarryCtx
 **英文定位：** Persistent project context for coding agents
-**文档版本：** v0.8.0
-**适用版本：** CarryCtx v0.8.x
+**文档版本：** v0.9.0
+**适用版本：** CarryCtx v0.9.x
 **产品阶段：** Requirements Draft
 **目标发布形式：** Native Rust CLI / Cargo, npm wrapper, and binary packages
 **默认命令：** `carryctx`
@@ -249,7 +249,7 @@ CarryCtx 是管理工具，不是大型 Agent 编排平台。
 - 创建中心化 SaaS 账户
 - 改造现有 Git 仓库结构
 
-> **历史说明（v0.1）：** 本节记录早期“单个 npm CLI 包”目标，不是 v0.8 的实现约束。当前 CLI 以原生 Rust 二进制为核心，并通过 Cargo、GitHub Releases 及平台包分发；npm 仅作为可选 wrapper/distribution channel。
+> **历史说明（v0.1）：** 本节记录早期“单个 npm CLI 包”目标，不是 v0.8 / v0.9.0 的实现约束。当前 CLI 以原生 Rust 二进制为核心，并通过 Cargo、GitHub Releases 及平台包分发；npm 仅作为可选 wrapper/distribution channel。
 
 ---
 
@@ -2499,7 +2499,7 @@ CarryCtx 默认不上传：
 
 # 20. 历史技术方案（v0.1，已废弃）
 
-本章保留 v0.1 的 TypeScript/Bun 设计记录，仅用于解释历史决策，不适用于 CarryCtx v0.8.x。当前实现使用 Rust 2024、Cargo、SQLite（rusqlite）和原生 CLI 分发。
+本章保留 v0.1 的 TypeScript/Bun 设计记录，仅用于解释历史决策，不适用于 CarryCtx v0.9.x（历史实现涵盖 v0.8.x，现行版本为 v0.9.x）。当前实现使用 Rust 2024、Cargo、SQLite（rusqlite）和原生 CLI 分发。
 
 推荐包结构：
 

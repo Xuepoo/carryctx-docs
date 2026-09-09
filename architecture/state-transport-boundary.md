@@ -115,12 +115,12 @@ Four contracts must never drift silently again. Each has exactly one source
 of truth; the table is the expected snapshot. A wave-2 CLI-repo task
 implements the check this section specifies — docs work stops at the spec.
 
-| Contract         | Source of truth                                                                                                                                                                                     | Current value                                                                             |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `cli`            | `carryctx-cli/Cargo.toml`, `package.version` (runtime cross-check: `carryctx --version`, MCP `initialize` server info — both `env!("CARGO_PKG_VERSION")`)                                           | `0.8.2`                                                                                   |
-| `ctxpack-format` | `crates/carryctx-core/src/domain/pack.rs` (`PACK_FORMAT` + `PACK_FORMAT_VERSION`; pre-P1 at `carryctx-cli/src/domain/pack.rs`)                                                                      | `carryctx-pack-dir`, `format_version` `1`                                                 |
-| `db-schema`      | `crates/carryctx-*/src/adapter/sqlite.rs` migration list (`crates/carryctx-sqlite` post-P2; pre-P2 at `carryctx-cli/src/adapter/sqlite.rs`), matching `migrations/project/NNNN_*.sql` (latest wins) | `17` (`0017_worktree_cleanup_requests`)                                                   |
-| `skill-surface`  | `carryctx-skills/skills/use-carryctx/SKILL.md` frontmatter `version`, plus the minimum CLI surface the skill claims to cover                                                                        | skill `1.1.0`; README still claims a `v0.8.0` surface (known drift, reconciled by wave-2) |
+| Contract         | Source of truth                                                                                                                                                                                     | Current value                                                                                                                                     |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cli`            | `carryctx-cli/Cargo.toml`, `package.version` (runtime cross-check: `carryctx --version`, MCP `initialize` server info — both `env!("CARGO_PKG_VERSION")`)                                           | `0.9.0`                                                                                                                                           |
+| `ctxpack-format` | `crates/carryctx-core/src/domain/pack.rs` (`PACK_FORMAT` + `PACK_FORMAT_VERSION`; pre-P1 at `carryctx-cli/src/domain/pack.rs`)                                                                      | `carryctx-pack-dir`, `format_version` `1`                                                                                                         |
+| `db-schema`      | `crates/carryctx-*/src/adapter/sqlite.rs` migration list (`crates/carryctx-sqlite` post-P2; pre-P2 at `carryctx-cli/src/adapter/sqlite.rs`), matching `migrations/project/NNNN_*.sql` (latest wins) | `17` (`0017_worktree_cleanup_requests`)                                                                                                           |
+| `skill-surface`  | `carryctx-skills/skills/use-carryctx/SKILL.md` frontmatter `version`, plus the minimum CLI surface the skill claims to cover                                                                        | skill `1.1.0`; `v0.9.0` surface (0.8.x → 0.9.0 aligned; history anchor for 0.8.2 gate preserved in design/2026-09-09-ctxpack-export-import.md §9) |
 
 The check compares this exact JSON shape with strict equality; any mismatch
 fails the gate:
@@ -128,13 +128,13 @@ fails the gate:
 ```json
 {
   "contract_versions": {
-    "cli": "0.8.2",
+    "cli": "0.9.0",
     "ctxpack_format": { "format": "carryctx-pack-dir", "format_version": 1 },
     "db_schema": 17,
     "skill_surface": {
       "skill": "use-carryctx",
       "version": "1.1.0",
-      "min_carryctx": "0.8.2"
+      "min_carryctx": "0.9.0"
     }
   }
 }
@@ -157,8 +157,8 @@ Check procedure (normative for the wave-2 implementation):
    flag with stale examples fails the same gate.
 4. **Bump rule.** A version bump is one reviewable change: source-of-truth
    edit, plus this table, plus the `cli-specification.md`
-   applicability note, plus `CHANGELOG.md`. Tagging follows the 0.8.2 gate
-   (ctxpack design §9): review closed, `cargo fmt --check`, Clippy with
+   applicability note, plus `CHANGELOG.md`. Tagging follows the 0.9.0/current gate
+   (ctxpack design §9, history anchor for 0.8.2 preserved): review closed, `cargo fmt --check`, Clippy with
    `-D warnings`, `cargo test`, markdownlint, package-smoke, and the
    acceptance matrix green.
 

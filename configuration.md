@@ -1,8 +1,8 @@
 # CarryCtx 配置与存储规范
 
 **文档路径：** `carryctx-docs/configuration.md`
-**文档版本：** v0.8.0
-**适用版本：** CarryCtx v0.8.x
+**文档版本：** v0.9.0
+**适用版本：** CarryCtx v0.9.x
 
 ---
 
