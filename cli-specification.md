@@ -496,6 +496,9 @@ carryctx project export
 carryctx project import
 ```
 
+> 说明：`project export/import` 为保留名称，0.8.2 未实现；同等能力由顶级
+> `carryctx export` / `carryctx import`（ctxpack dir v1）提供，见 §12.1。
+
 ## `project show`
 
 显示：
@@ -520,6 +523,31 @@ carryctx project migrate
 - 创建备份
 - 事务执行
 - 写入 Migration Event
+
+---
+
+## 12.1 `carryctx export` / `carryctx import`（0.8.2 起，ctxpack dir v1）
+
+离线优先的可移植状态交换格式，与传输方式无关（scp/ssh/NAS/Syncthing/rclone
+均由用户选择，二进制不含网络代码）。SQLite 仍是内部持久化格式；ctxpack
+目录是交换格式。完整契约见 `design/2026-09-09-ctxpack-export-import.md`。
+
+```bash
+carryctx export --pack-format dir -o ./ctxpack-dir/
+carryctx import ./ctxpack-dir/ [--mode replace] [--dry-run] [--yes]
+```
+
+`--pack-format`（而非 `--format`）：全局 `--format text|json|markdown` 控制
+输出信封渲染，不得复用。`--stdout` 在 v1 返回 `UNSUPPORTED_OPERATION`，
+单文件传输用外部管道：`tar -cf - ./ctxpack-dir/ | ssh host 'tar -xf -'`。
+
+- 新仓库导入等价于 `init`（复用包内 `project_id`）+ 落库 + 绝对路径重锚定，
+  并追加 `project.imported` 事件；`.carryctx/config.toml` 已存在且 `project.id`
+  不一致时返回 `STATE_CONFLICT`。
+- 已初始化项目上裸 `import` 返回 `STATE_CONFLICT`（exit 3）并提示
+  `--mode replace`；`--mode merge` 在 v1 返回 `UNSUPPORTED_OPERATION`（exit 10）。
+- 信封命令名：`export.create` / `import.create`；`--dry-run` 下
+  `data.operation.applied` 为 `false` 且不写入任何内容。
 
 ---
 
@@ -1585,9 +1613,10 @@ experimental:
   worktree bind/list/show/status/unbind/remove
   graph add-node/link/extract-deps/scan/export/edges
   mcp
+  export/import (top-level, ctxpack dir v1; --mode merge deferred)
 
 deferred:
-  project export/import
+  project export/import (reserved name; use top-level export/import)
   worktree prune
   event tail
   skill update/export

@@ -78,9 +78,14 @@
 ## 3. Export contract
 
 ```bash
-carryctx export --format dir -o ./ctxpack-dir/ [--task <id>] [--dry-run]
-carryctx export --format dir --stdout  # tar stream of the dir to stdout (for ssh/age pipes)
+carryctx export --pack-format dir -o ./ctxpack-dir/ [--dry-run]
+carryctx export --pack-format dir --stdout  # v1: returns UNSUPPORTED_OPERATION; use external tar pipe
 ```
+
+> 实现注（2026-09-09 review）：pack 格式开关命名为 `--pack-format` 而非
+> `--format`，避免与控制输出信封渲染的全局 `--format text|json|markdown`
+> 冲突（`graph export` 因同类冲突使用 `--type`，见 `src/main.rs`）。
+> `--stdout` 在 v1 明确返回 `UNSUPPORTED_OPERATION`（exit 10），不静默降级。
 
 - Default exports the whole project. `--task <id>` (optional v1) exports that task's closure for scoping tests; full-project remains the primary contract.
 - `--dry-run`: validate + print plan (entity counts, target path), write nothing, exit 0.
