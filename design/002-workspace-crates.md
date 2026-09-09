@@ -1,6 +1,6 @@
 # Workspace Crate Split Design (4+1)
 
-**Status:** Accepted (2026-09-09). P1 landed as `dfecd07`; P2-P5 tracked as follow-ons.
+**Status:** Accepted (2026-09-09). P1 landed as `dfecd07`; P2 (`carryctx-sqlite`) landed on `refactor/002-P1-core`; P3-P5 tracked as follow-ons.
 
 **Date:** 2026-09-09
 
@@ -154,7 +154,7 @@ behave identically. The refactor is internal only; external rendering, JSON enve
 
 | Phase | Crate             | Scope                                                                                                                                       | Entry criteria                                               |
 | ----- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| P2    | `carryctx-sqlite` | `migrations/*`, `src/adapter/sqlite*`, `src/adapter/unit_of_work.rs`, repository impls, WAL/backup/restore, integrity check                 | `core` traits stable; no new domain entities expected        |
+| P2    | `carryctx-sqlite` | `migrations/*`, `src/adapter/sqlite*`, `src/adapter/unit_of_work.rs`, repository impls, WAL/backup/restore, integrity check — **landed** | `core` traits stable; no new domain entities expected — P2 commit thins `src/` to re-exports |
 | P3    | `carryctx-vcs`    | `src/adapter/git.rs`, `src/adapter/xdg.rs` (VCS-adjacent), `VcsBackend` trait, `GitBackend` Tier 1, `JjBackend` optional + `capabilities()` | P2 green; `worktree` vs `workspace` naming decision recorded |
 | P4    | `carryctx-pack`   | `src/domain/pack.rs`, `src/application/interchange.rs`, `src/application/export.rs` / `import.rs`, manifest/JSONL validation                | `core` pack types frozen at `format_version` 1               |
 | P5    | `carryctx-cli`    | `src/commands/*`, `src/application/*` (remaining), `src/output.rs`, `src/error.rs`, `src/main.rs`, `clap` extraction from `core`            | P2-P4 green; CLI contract snapshot tests green               |
@@ -175,3 +175,4 @@ Each phase updates `engineering-standards.md` §5.2 to mark the crate as landed 
 | Date       | Change                                                                                                    |
 | ---------- | --------------------------------------------------------------------------------------------------------- |
 | 2026-09-09 | Initial version. Records 4+1 decision, `VcsBackend::capabilities()` choice, and P1 deliverable `dfecd07`. |
+| 2026-09-09 | P2 lands `carryctx-sqlite` (migrations + repos + WAL/backup/journal). `src/` thinned to bridges; `cargo check --workspace` (3 members) + `cargo test --workspace` green; CLI contract zero change. |

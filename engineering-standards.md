@@ -191,20 +191,20 @@ carryctx-cli/                  # Cargo workspace root
 │   │       ├── repository/    # 持久化契约（traits），无实现
 │   │       ├── application/   # 纯用例（interchange/progress 等，不触 SQLite/Git/FS）
 │   │       └── error.rs
-│   ├── carryctx-sqlite/       # P2 目标：migrations + repository impl + state.sqlite 持久化
+│   ├── carryctx-sqlite/       # P2 已拆出：migrations + repository impl + state.sqlite 持久化（WAL/backup/journal）
 │   ├── carryctx-vcs/          # P3 目标：VcsBackend + Git Tier1 / jj optional
 │   ├── carryctx-pack/         # P4 目标：ctxpack interchange（manifest/format_version/JSONL）
 │   └── carryctx-cli/          # P5 目标：clap 解析 + commands + rendering + main 二进制
 │       └── src/
 │           ├── commands/
-│           ├── adapter/       # 过渡期仍在根 crate，P2-P3 逐步迁入对应 crates
-│           ├── application/   # 过渡期：含 SQLite/Git/FS 的用例仍在根，P2-P4 后收敛至 core
+│           ├── adapter/       # 过渡期仍在根 crate，P3 后 SQLite 相关迁入 carryctx-sqlite
+│           ├── application/   # 过渡期：含 Git/FS 的用例仍在根，P3-P4 后收敛至 core/pack
 │           └── main.rs
-├── migrations/project/
+├── migrations/project/        # SQL 源码；编译期通过 carryctx-sqlite 嵌入（include_str!）
 └── tests/
 ```
 
-> **P1 交付边界（dfecd07）：**仅 `crates/carryctx-core` 已物理隔离并通过 `cargo check --workspace`；`carryctx-sqlite`/`vcs`/`pack`/`cli` 四个 crate 的完整抽离在 P2-P5 按序落地，期间根 `src/` 与 `crates/carryctx-core` 并存，CLI 契约零变化。
+> **P2 交付边界（carryctx-sqlite）：**`crates/carryctx-sqlite` 已物理隔离并通过 `cargo check --workspace` / `cargo test --workspace`；`src/adapter/sqlite*.rs`、`src/adapter/unit_of_work.rs`、`src/repository/graph.rs|search.rs` 在根 crate 保留为 thin re-export 桥接，CLI 契约零变化。`carryctx-core` 保持纯域（P1），`carryctx-sqlite` 拥有迁移/WAL/backup/journal 及 repository 实现。
 
 ---
 
