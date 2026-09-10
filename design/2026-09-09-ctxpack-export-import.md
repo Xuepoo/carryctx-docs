@@ -1,6 +1,10 @@
 # ctxpack Export/Import Design (Interchange Format v1)
 
-**Status:** Draft for review, 2026-09-09. Phase 0 + Phase 1 only. Merge/three-way/DAG explicitly deferred.
+**Status:** Historical — Phase 0 + Phase 1 (interchange v1) landed; Phase 2
+(merge/three-way/DAG) was delivered by
+`design/2026-09-10-mergeable-git-managed-state.md` (shipped in `carryctx`
+0.10.0). Statements below that `--mode merge` is unsupported describe
+the v1 phase only; the current contract is in `cli-specification.md` §12.1.
 
 **Date:** 2026-09-09
 

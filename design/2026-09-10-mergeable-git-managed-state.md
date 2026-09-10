@@ -4,8 +4,8 @@
 DEC-0051/DEC-0052. Implementation is merged to `carryctx-cli` main but not yet
 released (latest release: v0.9.1): CTX-0139–CTX-0145 completed (schema 0018,
 ctxpack v2, three-way merge engine, `import --mode merge`, conflict UX,
-snapshot refs, two-parent merge snapshots); CTX-0146 in progress; CTX-0147
-(docs sync) in review.
+snapshot refs, two-parent merge snapshots); CTX-0146 in progress; the CTX-0147
+docs sync has landed on this repository's main.
 
 **Task:** CTX-0138 (`carryctx-cli`; commander `cmd-001`). This is Phase 2 of
 `design/2026-09-09-ctxpack-export-import.md`, which deferred merge, three-way,
@@ -676,7 +676,8 @@ the public-contract changes.
 
 Implementation status (2026-09-10): CTX-0139–CTX-0145 are completed and merged
 to `carryctx-cli` main, unreleased (merged PR numbers: #140, #142, #145, #148, #150, #151, #154, #155).
-CTX-0146 is in progress; CTX-0147 (docs sync in this repository) is in review.
+CTX-0146 is in progress; the CTX-0147 docs sync has landed on this repository's
+main.
 
 ## 10. References
 

@@ -1,11 +1,11 @@
 # 项目与生命周期
 
-CarryCtx v0.9.0 是面向 Agent 与人类协作者的、local-first 的**全项目生命周期持久化与控制层**。
+CarryCtx v0.10.0 是面向 Agent 与人类协作者的、local-first 的**全项目生命周期持久化与控制层**。
 它把项目契约、任务关系、协作身份、工作会话、Git 工作区、进度、交接和审计记录保存在一个可恢复的项目状态中，使工作能够跨 Agent、窗口、Session
 和 worktree 延续。
 
 CarryCtx 不负责调度项目流程或执行 Agent。外部 harness 负责过程调度、Agent 执行、模型选择和验证；CarryCtx 负责持久化状态、提供确定性查询与安全的状态转换。
-v0.9.0 不提供通用的 Completion Gates 或已发布的 Automation Engine。
+v0.10.x 不提供通用的 Completion Gates 或已发布的 Automation Engine。
 `task.strict_completion` 和 evidence checkpoint 是可选的任务/检查点策略，不是独立的自动化编排系统。
 
 ## 生命周期链
@@ -20,6 +20,7 @@ init / project contract
   → cleanup outbox / reconciliation / policies
   → audit / analytics
   → release evidence
+  → state exchange / merge (export · import · snapshot ref)
 ```
 
 1. **初始化与项目契约**：运行 `carryctx init` 创建项目声明配置、SQLite 状态和
@@ -54,6 +55,18 @@ init / project contract
 9. **发布证据**：发布前由外部 harness 执行测试、Lint、构建和其他验证，并将结果、commit、已知缺口
    和相关 checkpoint/handoff 作为 release evidence 保存。CarryCtx 可保存这些进度与检查点并提供
    审计查询，但不替代验证工具或发布流程。
+10. **状态交换与合并**（merge milestone，0.10.0 起）：用
+    `carryctx export --pack-format dir -o <dir>` 生成 ctxpack（v2：`parents`
+    DAG、`tombstones`、`redacted` 标记；v1 仍可读一个 release cycle），用
+    `carryctx import <dir>` 做 fresh/replace 导入，用
+    `carryctx import <dir> --mode merge`（可配 `--base`、`--require-base`、
+    `--strict-edits`）做三方合并；阻断冲突以 `MERGE_CONFLICTS`（exit 3）落到
+    `<git-common-dir>/carryctx/merges/<id>/`，由
+    `conflict list/show/resolve/apply/abort` 处理。`export --snapshot` /
+    `import --from-git` 用本地 Git ref 离线携带快照 DAG；二进制从不
+    push/fetch，Git 传输由用户完成。完整命令与退出码见
+    [`export/import` 规范 §12.1](../../cli-specification.md) 与
+    [`conflict` 规范 §12.2](../../cli-specification.md)。
 
 ## 状态边界
 
@@ -68,6 +81,11 @@ CarryCtx Core 不发起网络连接。`carryctx sync push/pull` 若使用，仅�
 whole-file、last-writer-wins 复制，不是云同步或冲突合并。详见 [`存储与配置`](../../configuration.md)
 与 [`Zero Network Policy`](../../architecture/zero-network-policy.md)。
 
+项目状态通过 ctxpack 目录在机器之间交换（`export`/`import`），它是互操作契约而不是运行时数据库。
+merge milestone 的合并 staging 位于 `<git-common-dir>/carryctx/merges/`，快照 DAG
+由本地 Git ref 承载；这些机器本地目录从不自动上传或同步。详见
+[`export/import` 规范 §12.1](../../cli-specification.md)。
+
 检测到 Git 与 `.jj/` 并存的 colocated 仓库时，CarryCtx 对不安全的 Git worktree 操作 fail closed：
 `worktree create` 拒绝执行，仍存在的 Git worktree 也不能通过 `worktree remove` 删除。请直接使用
 `jj workspace add`；若要纳入 CarryCtx 追踪，在主仓库中使用 `worktree bind`。jj 下 checkpoint
@@ -81,4 +99,6 @@ carryctx status
 carryctx resume
 carryctx context
 carryctx doctor
+carryctx export --pack-format dir -o ./ctxpack-dir/    # 状态交换
+carryctx import ./ctxpack-dir/ --mode merge             # 三方合并
 ```
