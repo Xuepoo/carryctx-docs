@@ -605,10 +605,14 @@ carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|r
 ### 12.1.2 合并快照提交（CTX-0145）
 
 ```bash
-carryctx import <dir> --mode merge [--snapshot-ref [<ref>]]
-carryctx import --from-git <ref> --mode merge [--snapshot-ref [<ref>]]
-carryctx conflict apply [--snapshot-ref [<ref>]]
+carryctx import <dir> --mode merge [--snapshot-ref[=<ref>]]
+carryctx import --from-git <ref> --mode merge [--snapshot-ref[=<ref>]]
+carryctx conflict apply [--snapshot-ref[=<ref>]]
 ```
+
+> `--snapshot-ref` 的取值必须用等号形式（`--snapshot-ref=refs/carryctx/local`）；
+> 裸 `--snapshot-ref` 使用缺省值，但不能写成 `--snapshot-ref <ref>`，否则 clap
+> 会把后续位置参数误当成 DIR 并以 `INVALID_ARGUMENTS`（exit 2）拒绝。
 
 - `import --mode merge` 与 `conflict apply` 在合并原子生效后，若给出
   `--snapshot-ref`（可省略值，缺省 `refs/carryctx/local`），把合并后的活跃
@@ -618,18 +622,26 @@ carryctx conflict apply [--snapshot-ref [<ref>]]
   守卫仍生效）；subject 形如
   `chore(ctxpack): merge <export_id> (<branch> @ <short-sha>)`，
   `CarryCtx-Export-Id` / `CarryCtx-Parents` / `CarryCtx-Source` trailer
-  保留，`CarryCtx-Parents` 按同一顺序列出两个 parent export id，新
-  `manifest.parents` 也记录 `[本地 tip export id, 传入 export id]`。成功后
-  在同一事务内更新 `snapshot_state` 的 `last_export_id` 与
-  `last_snapshot_commit`；成功信封新增
+  保留，`CarryCtx-Parents` 按同一顺序列出两个 parent export id（由调用方
+  解析后原样写入，绝不从 parent commit message 重新推导，因此传入 commit
+  缺少 trailer 也不会丢边）；parent commit 数与 export id 数不一致时以
+  `GIT_ERROR`（exit 4）失败关闭，不写任何 commit。新 `manifest.parents` 也
+  记录 `[本地 tip export id, 传入 export id]`。成功后在同一事务内更新
+  `snapshot_state` 的 `last_export_id` 与 `last_snapshot_commit`；成功信封
+  新增
   `data.snapshot = {ref, commit, previousCommit, parentExportIds, parents, source}`。
-- 传入快照 commit 的解析：`--from-git <ref>` 用该 ref 解析出的 tip；目录导入
-  则在本地 snapshot ref 历史中查找 export id 等于
-  `bundle.manifest.export_id` 的 commit。目录 bundle 从未提交到 ref（或本地
-  ref 无 tip）时无法构成双亲历史，此时**跳过**快照提交，并在 `data.warnings`
-  中说明；`conflict apply` 从 `merge.json` 的 `sourceRef`/`sourceCommit`
-  （staging 时写入）读取传入 commit，缺失时同样跳过并告警。本地 snapshot ref
-  的历史也参与 §2.1 的 base 解析，因此跨 clone 的二次合并能解析到公共祖先。
+- 传入快照 commit 的解析：`--from-git <ref>` 在 materialize 时即捕获该 ref
+  tip 的 sha 并贯穿使用（`merge.json` 的 `sourceCommit` 也记录该捕获值），
+  因此 materialize 之后 ref 即使被并发移动，合并 commit 的第二个 parent 仍是
+  被合并 tree 所属的 commit；目录导入则在本地 snapshot ref 历史中查找 export
+  id 等于 `bundle.manifest.export_id` 的 commit。目录 bundle 从未提交到 ref
+  （或本地 ref 无 tip）时无法构成双亲历史，此时**跳过**快照提交，并在
+  `data.warnings` 中说明；`conflict apply` 从 `merge.json` 的
+  `sourceRef`/`sourceCommit`（staging 时写入，未 `--from-git` 时为 `null`）
+  读取传入 commit，缺失时同样跳过并告警。本地 snapshot ref 的历史**仅在显式
+  传入 `--snapshot-ref` 时**才参与 §2.1 的 base 解析，因此跨 clone 的二次合并
+  能解析到公共祖先，而未加该 flag 的合并（`--from-git` 或目录）base 解析与
+  CTX-0145 之前完全一致。
 - 顺序与原子性：数据库原子交换仍是提交点。快照 commit 在交换**成功之后**
   写入，因此 ref 永远只指向真实活跃的状态；提交失败（例如并发 worktree 移动
   ref 触发比较交换失败）以 `GIT_ERROR`（exit 4）报错并给出重试提示，但
@@ -678,7 +690,7 @@ git push <remote> refs/carryctx/local:refs/heads/state
 carryctx conflict list [--all] [--merge <id>]
 carryctx conflict show <conflict-id> [--merge <id>] [--format markdown]
 carryctx conflict resolve <conflict-id> --ours|--theirs [--merge <id>] [--set field=value]... [--dry-run]
-carryctx conflict apply [--merge <id>] [--skip-open] [--snapshot-ref [<ref>]] [--dry-run]
+carryctx conflict apply [--merge <id>] [--skip-open] [--snapshot-ref[=<ref>]] [--dry-run]
 carryctx conflict abort [--merge <id>] [--dry-run]
 ```
 
