@@ -552,6 +552,71 @@ carryctx import ./ctxpack-dir/ [--mode replace] [--dry-run] [--yes]
 
 ---
 
+## 12.2 `carryctx conflict`（CTX-0143，Unreleased）
+
+`import --mode merge` 在三方合并产生阻断冲突时，把合并会话写入
+`<git-common-dir>/carryctx/merges/<merge_id>/`（`merge.json`、
+`conflicts.json`、`candidate.sqlite`、`theirs/`），并以 `MERGE_CONFLICTS`
+（exit 3）退出，活跃数据库保持不变。`conflict` 命令族消费该会话：
+`list`/`show` 只读，`resolve`/`apply`/`abort` 在应用层获取 admission lock
+后再写入会话状态。完整设计见
+`design/2026-09-10-mergeable-git-managed-state.md` §2.4–§2.6。
+
+```bash
+carryctx conflict list [--all] [--merge <id>]
+carryctx conflict show <conflict-id> [--merge <id>] [--format markdown]
+carryctx conflict resolve <conflict-id> --ours|--theirs [--merge <id>] [--set field=value]...
+carryctx conflict apply [--merge <id>] [--skip-open] [--dry-run]
+carryctx conflict abort [--merge <id>]
+```
+
+- 会话解析：`--merge <id>` 选择指定会话；缺省时选择唯一的活动会话（同时
+  存在 `merge.json` 与 `conflicts.json`，且 `status` 非 `applied`/`aborted`）。
+  没有可用会话时返回 `RESOURCE_NOT_FOUND`（exit 7）。
+- `resolve` 的 `--ours` / `--theirs` 互斥且必选其一；`--set field=value` 可
+  重复，值优先按 JSON 解析，失败则按字符串处理，字段必须存在于所选行的
+  JSON object 中，否则 `VALIDATION_FAILED`（exit 8）。
+- `resolve` 只把 `{choice, fields:{...}, resolvedAt, resolvedBy}` 追加/替换到
+  `conflicts.json`（原子写），不修改 `candidate.sqlite`；`resolution` 为
+  `null` 表示未解决，非 null 表示已解决。
+- `apply` 在任一冲突未解决时返回 `MERGE_CONFLICTS`（exit 3，带
+  `details.mergeId` 与 `details.conflicts`），除非 `--skip-open`（未解决冲突
+  保持 ours 并写入 warning）。它在一个事务里把每个 resolution 物化进
+  `candidate.sqlite`，并追加恰好一个 `project.merged`、每个已解决冲突一个
+  `merge.conflict_resolved`，以及 CTX-0142 的 `merge.auto_resolved` /
+  `merge.display_id_renumbered` 事件；随后复用 CTX-0142 的
+  `validate_candidate` 与 restore-journal 原子交换。失败（含 kill）时活跃
+  数据库与会话保持原样；`apply --dry-run` 只校验与报告，不写入任何内容。
+- `abort` 删除整个会话目录，不修改数据库、不写 journal。
+
+信封命令名与 `data`：
+
+| 命令    | `command`          | `data`                                                                                                                                                         |
+| ------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| list    | `conflict.list`    | `{mergeId,status,degraded,baseSource,counts,open,resolved,conflicts:[{id,kind,table,key,reason,resolution}],autoResolutions:[{table,key,kind,winner,reason}]}` |
+| show    | `conflict.show`    | `{mergeId,status,conflict:{id,kind,table,key,base,ours,theirs,reason,resolution}}`                                                                             |
+| resolve | `conflict.resolve` | `{mergeId,conflictId,choice,resolvedCount,openCount}`                                                                                                          |
+| apply   | `conflict.apply`   | `{mergeId,applied,resolvedCount,conflicts,counts,path,preMergeBackupPath,warnings,operation:{applied}}`                                                        |
+| abort   | `conflict.abort`   | `{mergeId,aborted,operation:{applied:true}}`                                                                                                                   |
+
+`conflict list` 默认只列未解决冲突（`resolution == null`）；`--all` 额外
+包含已解决冲突与 `merge.json` 中的自动解决记录。`conflict show` 的文本 /
+Markdown 输出渲染 base/ours/theirs 行与 policy reason。
+
+错误与退出码（公共 API）：
+
+| 条件                              | code                 | exit |
+| --------------------------------- | -------------------- | ---- |
+| `conflict apply` 仍有未解决冲突   | `MERGE_CONFLICTS`    | 3    |
+| 无活动合并会话 / 未知 conflict id | `RESOURCE_NOT_FOUND` | 7    |
+| `--set` 未知字段或非法 override   | `VALIDATION_FAILED`  | 8    |
+
+`doctor` 额外报告活动合并会话（`merges.active`，含 `mergeId`、
+`createdAt`、`conflictCount`）；`createdAt` 超过 24 小时标记
+`stale: true`。仅有 warning 级发现时退出码保持 0。
+
+---
+
 # 13. `carryctx config`
 
 ```text
