@@ -1,8 +1,11 @@
 # Mergeable, Git-Managed CarryCtx State (Merge Milestone Design)
 
-**Status:** Implemented — shipped in `carryctx` 0.10.0 (2026-09-11).
-CTX-0139–CTX-0147 all landed; this document is the source of truth for the
-shipped merge contract.
+**Status:** Accepted (design PR #12, 2026-09-10); all §8 decisions ratified by
+DEC-0051/DEC-0052. Implementation is merged to `carryctx-cli` main but not yet
+released (latest release: v0.9.1): CTX-0139–CTX-0145 completed (schema 0018,
+ctxpack v2, three-way merge engine, `import --mode merge`, conflict UX,
+snapshot refs, two-parent merge snapshots); CTX-0146 in progress; the CTX-0147
+docs sync has landed on this repository's main.
 
 **Task:** CTX-0138 (`carryctx-cli`; commander `cmd-001`). This is Phase 2 of
 `design/2026-09-09-ctxpack-export-import.md`, which deferred merge, three-way,
@@ -466,17 +469,24 @@ merge fidelity (`***REDACTED***` would overwrite real values). Policy
   directly.
 - Redacted bundles (`manifest.redacted: true`) are publication artifacts and
   are refused as merge sources; fresh/replace import may still accept them.
-- A guard test in CTX-0144 asserts the local-only ref never uses or moves the
-  public ref and cannot be published by a default `git push`.
+- CTX-0144 (completed, PR #154) implements and tests the guard: local-only
+  export refuses `refs/heads/carryctx-snapshots` and every other `refs/heads/*`
+  target with `INVALID_ARGUMENTS`, and a bare-origin test asserts a default
+  `git push` cannot move the local ref.
 
 ### 3.7 Status of CTX-0122
 
-CTX-0122 ("publish project state snapshots to `carryctx-snapshots` branch")
-was closed unmerged (PR #134). Its redaction and redacted-publication behavior
-folds into a publication follow-up after CTX-0144/CTX-0145, using the distinct
-public ref `refs/heads/carryctx-snapshots` (DEC-0051 #7, DEC-0052, issue #138).
-The `git_snapshot.rs` domain type in `carryctx-core` is a different concept
-(per-checkpoint worktree state).
+CTX-0122 ("publish project state snapshots to `carryctx-snapshots` branch") is
+re-scoped and remains blocked: PR #134 was closed unmerged on 2026-09-10 and
+its branch is kept as a reference implementation (DEC-0051 #7, DEC-0052). Its
+redacted-publication output folds into a publication follow-up that depends on
+CTX-0144/CTX-0145 (both completed) and is tracked by issue #138, which is still
+open. The public redacted publication ref stays
+`refs/heads/carryctx-snapshots`; the unredacted snapshot ref used by
+`export --snapshot` / `import --from-git` is local-only
+(`refs/carryctx/local`, §3.1/§3.6) and is never pushed. The `git_snapshot.rs`
+domain type in `carryctx-core` is a different concept (per-checkpoint worktree
+state).
 
 ---
 
@@ -592,46 +602,55 @@ Migration notes:
 | Conflict markers inside the live database                  | Conflicted state would be queryable by agents and exported accidentally; staging outside SQLite fails closed.                                                   |
 | Push snapshot refs automatically from the binary           | Network code and credentials in Core; violates the zero-network boundary.                                                                                       |
 
-## 8. Open questions and decisions needed
+## 8. Decisions (ratified)
 
-DEC-0051 (2026-09-10) ratified the defaults; resolutions are inlined below.
+All nine decisions below are **RATIFIED** by DEC-0051 and DEC-0052
+(`carryctx-cli`, 2026-09-10). Resolutions are recorded inline and the design
+text above follows them; issue #138 stays open only to track the decision-4
+publication follow-up.
 
 1. **Conflict default strictness.** Is auto-LWW for `row_edit` acceptable as
    the default (with `--strict-edits` opt-in), or should edits block by
    default for lower-surprise merges?
-   _Resolved by DEC-0051 #1: auto-LWW by default, `--strict-edits` opt-in._
+   _Ratified (DEC-0051 #1): auto-LWW by default; `--strict-edits` opts into
+   blocking._
 2. **Status semantics.** Confirm the terminal-wins lattice and that
    `completed` vs `cancelled` is the only blocking status pair.
-   _Resolved by DEC-0051 #2: terminal-wins; `completed` vs `cancelled` is the
-   only blocking pair._
+   _Ratified (DEC-0051 #2): terminal-wins lattice; `completed` vs `cancelled`
+   is the only blocking pair._
 3. **Tombstones vs `deleted_at` columns.** This design uses a side table;
    confirm that deleting rows should never alter ordinary read queries.
-   _Resolved by DEC-0051 #3: tombstone side table, no read-path change._
+   _Ratified (DEC-0051 #3): tombstone side table; deleting rows never alters
+   ordinary read queries._
 4. **Snapshot-ref push policy for public repos.** Confirm that unredacted
    snapshots are never pushed to public product repos and that `-workflow`
    mirrors stay redacted, review-only.
-   _Resolved by DEC-0051 #4 / DEC-0052: distinct refs — local-only unredacted
-   `refs/carryctx/local`, public redacted `refs/heads/carryctx-snapshots`; the
-   local ref is never pushed by CarryCtx and is refused the public name._
+   _Ratified (DEC-0051 #4, DEC-0052): distinct refs — local-only unredacted
+   `refs/carryctx/local` (never pushed by CarryCtx; `refs/heads/*` targets,
+   including `refs/heads/carryctx-snapshots`, are refused with
+   `INVALID_ARGUMENTS`) and public redacted `refs/heads/carryctx-snapshots`
+   (publication flow). Guard test implemented in CTX-0144 (completed, PR #154)._
 5. **Base-less merge default.** Degrade to tombstone-aware 2-way with a
    warning, or refuse unless `--base`/`--require-base`?
-   _Resolved by DEC-0051 #5: degrade with a warning; `--require-base` refuses
-   with `VALIDATION_FAILED` (exit 8)._
+   _Ratified (DEC-0051 #5): degrade to tombstone-aware 2-way with a warning;
+   `--require-base` refuses with `VALIDATION_FAILED` (exit 8)._
 6. **New error code.** Is `MERGE_CONFLICTS` (exit 3) acceptable as public
    API, or should it collapse into `STATE_CONFLICT`?
-   _Resolved by DEC-0051 #6: `MERGE_CONFLICTS` exit 3._
+   _Ratified (DEC-0051 #6): `MERGE_CONFLICTS` is public API with exit 3._
 7. **CTX-0122 disposition.** Re-scope it under CTX-0144/CTX-0145 or close it
    as superseded.
-   _Resolved by DEC-0051 #7: PR #134 closed unmerged; redacted publication
-   folds into a publication follow-up after CTX-0144/CTX-0145 (issue #138)._
+   _Ratified (DEC-0051 #7, DEC-0052): PR #134 closed unmerged (branch kept as a
+   reference implementation); CTX-0122 stays blocked and re-scoped; redacted
+   publication folds into a follow-up after CTX-0144/CTX-0145 (both completed)
+   tracked by issue #138._
 8. **Format v1 support window.** How long must v1 bundles stay mergeable
    (degraded) before readers may require v2?
-   _Resolved by DEC-0051 #8: v1 imports supported for one release cycle after
-   the v2 writers ship._
+   _Ratified (DEC-0051 #8): v1 imports stay supported for one release cycle
+   after the v2 writers ship; after that readers may require v2._
 9. **Snapshot commit cadence.** One commit per export vs debounced/amended
    commits for high-frequency exports; and whether plain `export` should gain
    `--snapshot` by default in the future.
-   _Resolved by DEC-0051 #9: one commit per export, `--snapshot` stays
+   _Ratified (DEC-0051 #9): one commit per export snapshot; `--snapshot` stays
    opt-in; debouncing revisited later._
 
 ## 9. Work breakdown (created in `carryctx-cli`, 2026-09-10)
@@ -655,6 +674,11 @@ Suggested land order: 0139/0140 → 0141 → 0142 → 0143/0144 → 0145 → 014
 independent review, CI, merge) and keeps docs in `carryctx-docs` coupled to
 the public-contract changes.
 
+Implementation status (2026-09-10): CTX-0139–CTX-0145 are completed and merged
+to `carryctx-cli` main, unreleased (merged PR numbers: #140, #142, #145, #148, #150, #151, #154, #155).
+CTX-0146 is in progress; the CTX-0147 docs sync has landed on this repository's
+main.
+
 ## 10. References
 
 - `design/2026-09-09-ctxpack-export-import.md` — ctxpack v1 contract, deferred
@@ -673,7 +697,7 @@ the public-contract changes.
 
 ## History
 
-| Date       | Change                                                                                                                                                                                                                             |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-09-10 | Initial design: merge model, three-way algorithm, conflict UX, snapshots ref, bitty rollout, task breakdown CTX-0139–CTX-0147.                                                                                                     |
-| 2026-09-11 | Implementation status recorded: CTX-0139–CTX-0147 shipped in `carryctx` 0.10.0 (two-parent merge snapshots, offline git e2e, and the DEC-0052 local-only ref guard included); all §8 open questions resolved by DEC-0051/DEC-0052. |
+| Date       | Change                                                                                                                                                                                                    |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-09-10 | Initial design: merge model, three-way algorithm, conflict UX, snapshots ref, bitty rollout, task breakdown CTX-0139–CTX-0147.                                                                            |
+| 2026-09-11 | Ratified §8 via DEC-0051/DEC-0052; corrected CTX-0122/PR #134 and snapshot-ref status in §3.6/§3.7/§8.4/§8.7; recorded implementation state (CTX-0139–CTX-0145 merged, unreleased; CTX-0146 in progress). |
