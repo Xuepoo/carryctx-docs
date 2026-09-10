@@ -551,17 +551,17 @@ carryctx import ./ctxpack-dir/ [--mode replace] [--dry-run] [--yes]
 - 信封命令名：`export.create` / `import.create`；`--dry-run` 下
   `data.operation.applied` 为 `false` 且不写入任何内容。
 
-### 12.1.1 `carryctx-snapshots` 引用（CTX-0144）
+### 12.1.1 本地快照引用（CTX-0144）
 
 ```bash
 carryctx export --pack-format dir -o ./pack/ --snapshot \
-    [--snapshot-ref refs/heads/carryctx-snapshots]
+    [--snapshot-ref refs/carryctx/local]
 carryctx import ./pack/ [--mode replace|merge]
 carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|ref>]
 ```
 
 - `export --snapshot` 在 bundle 写入并校验通过后，把 pack 目录作为一次
-  commit 写到本地 `--snapshot-ref`（默认 `refs/heads/carryctx-snapshots`），
+  commit 写到本地 `--snapshot-ref`（默认 `refs/carryctx/local`），
   每个快照一个 commit（Git plumbing：`hash-object`/`mktree`/`commit-tree`/
   `update-ref` 比较交换），不触碰索引、工作树或网络。commit subject 形如
   `chore(ctxpack): snapshot <export_id> (<branch> @ <short-sha>)`，message 带
@@ -571,11 +571,12 @@ carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|r
   `snapshot_state` 的 `last_export_id` 与 `last_snapshot_commit`；成功信封新
   增 `data.snapshot = {ref, commit, previousCommit, parentExportIds, parents, source}`。
 - `--snapshot-ref` 必须是 `refs/` 开头的完整 ref 名并通过
-  `git check-ref-format`；`refs/heads/*` 目标只允许 `carryctx-*` 分支且不得
-  是当前检出的分支（因此 `main`、`HEAD`、短 rev、`refs/heads/main` 均以
-  `INVALID_ARGUMENTS`（exit 2）拒绝），其他 `refs/...` 命名空间（如
-  `refs/carryctx/snapshots`）允许。默认值 `refs/heads/carryctx-snapshots`
-  可直接使用。
+  `git check-ref-format`，且只能位于 `refs/carryctx/` 本地专用命名空间
+  （默认 `refs/carryctx/local`）。`refs/heads/carryctx-snapshots` 是公开脱敏
+  发布专用 ref（DEC-0052 / issue #138），未脱敏导出会以
+  `INVALID_ARGUMENTS`（exit 2）明确拒绝；其他 `refs/heads/*` 分支同样拒绝
+  （普通 `git push` 会移动分支，可能泄露未脱敏状态）；`main`、`HEAD`、短 rev
+  等非完整 ref 名也以 `INVALID_ARGUMENTS`（exit 2）拒绝。
 - 不带 `--snapshot` 的普通 `export` 仍写 `parents = []`，不写 ref、不更新
   `snapshot_state`。`--snapshot --dry-run` 只报告将写入的 ref/tip/parents
   （`data.snapshot.wouldCommit`），不写 ref、不写 `snapshot_state`、不建目录。
@@ -590,9 +591,13 @@ carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|r
 - `--mode merge` 的 base 解析可按 §2.1 顺序读取同一 ref 或 `--base` 指向的
   Git revision 的历史；祖先快照经 plumbing 离线物化。
 
-> 安全（design §3.6）：snapshot ref 默认只在本地，**绝不可把未脱敏的
-> snapshot ref 推送到公开仓库**；请使用私有 state 远端、加密通道，或直接
-> 交换 pack 目录。脱敏 bundle（`manifest.redacted: true`）是发布产物，作为
+> 安全（design §3.6；DEC-0052 / issue #138）：未脱敏快照 ref 只存在于本地，
+> 且位于非 `refs/heads/*` 的 `refs/carryctx/*` 命名空间，因此普通 `git push`
+> （含 `push --all`）不会移动它，二进制自身也从不 push；发布未脱敏状态必须由
+> 用户显式给出 refspec。公开脱敏发布使用专用分支
+> `refs/heads/carryctx-snapshots`（发布流程，见 issue #133/#138），**绝不可把
+> 未脱敏的 snapshot ref 推送到公开仓库**；请使用私有 state 远端、加密通道，或
+> 直接交换 pack 目录。脱敏 bundle（`manifest.redacted: true`）是发布产物，作为
 > merge 源会被拒绝（`UNSUPPORTED_OPERATION`，exit 10），fresh/replace 导入
 > 仍可接受。`push`/`fetch` 始终是用户侧传输，二进制不联网。
 
