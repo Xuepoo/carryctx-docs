@@ -17,13 +17,13 @@ the v1 phase only; the current contract is in `cli-specification.md` §12.1.
 ## 0. Binding constraints
 
 1. **Persistence vs interchange are separate.** SQLite (`<git-common-dir>/carryctx/state.sqlite`) stays the internal runtime format. `ctxpack-dir` (v1) is the interchange format. Never zip the raw state dir as the protocol: it carries `locks/`, `journals/`, `backups/`, `*-wal`/`*-shm`, and absolute paths.
-2. **Fail closed.** Import into an initialized project without an explicit `--mode` refuses with `STATE_CONFLICT`. `--merge` reports `UNSUPPORTED_OPERATION` until the merge milestone lands. Destructive paths require `--yes` (+ `--non-interactive` in CI) and take a verified pre-import backup first, reusing the `restore`/`sync pull` journal pattern.
+2. **Fail closed.** Import into an initialized project without an explicit `--mode` refuses with `STATE_CONFLICT`. `--merge` reports `UNSUPPORTED_OPERATION` until the merge milestone lands (v1 behavior; the milestone shipped in 0.10.0 — see the Status banner). Destructive paths require `--yes` (+ `--non-interactive` in CI) and take a verified pre-import backup first, reusing the `restore`/`sync pull` journal pattern.
 3. **Append-only audit is never rewritten.** Import appends `project.exported` / `project.imported` events in the same transaction as the state change. Historical event payloads (mixed snake/camelCase) are preserved byte-for-byte.
 4. **Display IDs are not identity.** Internal ULIDs are stable entity identity (`src/domain/ids.rs`). `CTX-xxxx`/`DEC-`/`PX-`/`HO-` come from the per-project `sequences` table and must be reconciled as `max+1` on import, never trusted from the bundle.
 
 ## 1. Non-goals for v1
 
-- No `merge`, no `conflict list/show/resolve`, no `snapshot log/diff`, no three-way merge, no export DAG. Manifest reserves `parents: []` and `sequences: {}` for that future; v1 readers ignore them.
+- No `merge`, no `conflict list/show/resolve`, no `snapshot log/diff`, no three-way merge, no export DAG. Manifest reserves `parents: []` and `sequences: {}` for that future; v1 readers ignore them. (v1 non-goals; merge/conflict/DAG shipped in 0.10.0 — `snapshot log/diff` remains a follow-up.)
 - No `--allow-non-git`. Import requires a Git repository (same as every other command via `git.discover`).
 - No native single-file compression. v1 ships `--format dir` only (git-diff friendly, zero new dependencies). Single-file transport is a documented external recipe: `tar -cf - <dir> | zstd | ssh ...`, `age`, etc. Native `.ctxpack` (tar+zstd in-binary) is a later option pending `cargo deny`/`audit` review of `tar`+`flate2`.
 - No `sync` replacement. `sync push/pull` (whole-DB LWW + `SYNC_PROJECT_MISMATCH`) stays for same-project-id fast sync. Export/import is the portable, re-anchorable path.
