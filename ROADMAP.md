@@ -8,7 +8,7 @@ and not a TODO list. The core binary never initiates network connections
 local `export` / `import` composed with user-chosen transport
 (see `architecture/state-transport-boundary.md`).
 
-## Where we are (v0.9.0)
+## Where we are (v0.10.0)
 
 - Runtime truth: a Rust CLI over a SQLite project state at
   `<git-common-dir>/carryctx/state.sqlite`, shared by linked worktrees.
@@ -19,7 +19,13 @@ local `export` / `import` composed with user-chosen transport
 - Shipped surface: tasks and dependencies, sessions, checkpoints, teams,
   worktrees, handoffs, decisions, context graph, append-only event audit,
   presets, MCP stdio server, local-only `sync push` / `pull`, and ctxpack
-  dir v1 (replace-import with conflict refusal; merge deferred).
+  dir v1 (replace-import with conflict refusal).
+- Merge milestone, shipped in 0.10.0: ctxpack v2 (`parents` DAG,
+  `tombstones`, `redacted` flag), schema 18, `import --mode merge` with
+  conflict staging and `conflict list/show/resolve/apply/abort`, local
+  snapshot Git refs (`export --snapshot`, `import --from-git`), and
+  two-parent merge snapshot commits after `--mode merge`/`conflict apply`.
+  The local-only unredacted ref guard is in place (DEC-0052).
 - History lives in `CHANGELOG.md`, verification evidence in `reports/`,
   and design records in `design/`.
 
@@ -41,20 +47,19 @@ state-transport boundary test before it is accepted.
    layer versus Git hooks, with trust, timeout, reentrancy, and failure
    policy), then implement. Backup, sync, notification, and CI compositions
    build on hooks — without network code in Core.
-3. **ctxpack v1 hardening.** Export profiles and privacy review (hostname,
+3. **ctxpack hardening.** Export profiles and privacy review (hostname,
    paths, agent names, task text), machine-local field audit, and
-   diff/inspection UX. Run real multi-machine flows first; decide
-   per-entity merge semantics from observed conflicts before designing merge.
-4. **Single user-manual source of truth.** `manual/` is normative; the
-   website manual generates or syncs from it (website-repo work). The
-   remaining docs-side step is pointing the lifecycle manual at
-   `export` / `import`.
+   diff/inspection UX. The semantic merge milestone shipped in 0.10.0; the
+   remaining work is the public redacted publication flow (DEC-0052) and
+   `snapshot log` / `snapshot diff`.
+4. **Single user-manual source of truth.** `manual/` is normative and now
+   documents the `export` / `import` lifecycle; the website manual generates
+   or syncs from it (website-repo work).
 
 ## Explicitly later
 
-- Semantic merge, three-way merge, and DAG (`parents` and `sequences` are
-  already reserved in the v1 manifest), plus `snapshot log` / `diff` and
-  `conflict list` / `show` / `resolve`.
+- `snapshot log` / `snapshot diff` UX and the public redacted publication
+  flow (distinct `refs/heads/carryctx-snapshots` ref; DEC-0052).
 - Multi-repository projects — only if the design passes the boundary test,
   and still with no network in Core.
 

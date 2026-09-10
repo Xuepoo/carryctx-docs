@@ -1,8 +1,8 @@
 # CarryCtx CLI 命令规范
 
 **文档路径：** `carryctx-docs/cli-specification.md`
-**文档版本：** v0.9.0
-**适用版本：** CarryCtx v0.9.0 / v0.9.x
+**文档版本：** v0.10.0
+**适用版本：** CarryCtx v0.10.0 / v0.10.x
 
 ---
 
@@ -212,6 +212,16 @@ CarryCtx 不应因为当前目录没有 `.carryctx/` 就立即失败。
 查询命令可以在没有 Session 时运行。
 
 需要 Session 的写命令必须明确报错。
+
+Session 引用解析（CTX-0148）：
+
+- `--session`、`CARRYCTX_SESSION` 以及 `session show|pause|resume|end|abandon`
+  的位置参数都接受唯一 ULID 前缀（大小写不敏感），并在任何消费者看到该值
+  之前规范化为完整 26 字符 ULID；`session start` 总是输出完整 ULID。
+- 前缀匹配到多个 Session 时返回 `VALIDATION_FAILED`（exit 8）并列出候选；
+  匹配不到时返回 `RESOURCE_NOT_FOUND`（exit 7）；都不会把原始短引用持久化
+  到 `progress_items.source_session_id` 等字段，也不会以
+  `DATABASE_ERROR`（外键失败）崩溃。
 
 ---
 
@@ -496,8 +506,8 @@ carryctx project export
 carryctx project import
 ```
 
-> 说明：`project export/import` 为保留名称（自 0.8.2 起未实现，0.9.0 仍保留）；同等能力由顶级
-> `carryctx export` / `carryctx import`（ctxpack dir v1）提供，见 §12.1。
+> 说明：`project export/import` 为保留名称（自 0.8.2 起未实现，0.10.0 仍保留）；同等能力由顶级
+> `carryctx export` / `carryctx import`（ctxpack dir v1/v2）提供，见 §12.1。
 > 历史 Gate：0.8.2 为 ctxpack 导出/导入的首次落地版本。
 
 ## `project show`
@@ -527,27 +537,68 @@ carryctx project migrate
 
 ---
 
-## 12.1 `carryctx export` / `carryctx import`（0.8.2 起引入，0.9.0 现行，ctxpack dir v1/v2；CTX-0144 起支持快照引用）
+## 12.1 `carryctx export` / `carryctx import`（0.8.2 起引入；ctxpack v2 与 `--mode merge` 自 0.10.0 起现行；CTX-0144 起支持快照引用）
 
 离线优先的可移植状态交换格式，与传输方式无关（scp/ssh/NAS/Syncthing/rclone
 均由用户选择，二进制不含网络代码）。SQLite 仍是内部持久化格式；ctxpack
-目录是交换格式。完整契约见 `design/2026-09-09-ctxpack-export-import.md`。
+目录是交换格式。完整契约见 `design/2026-09-09-ctxpack-export-import.md`
+与 `design/2026-09-10-mergeable-git-managed-state.md`。
 
 ```bash
 carryctx export --pack-format dir -o ./ctxpack-dir/
 carryctx import ./ctxpack-dir/ [--mode replace] [--dry-run] [--yes]
+carryctx import ./ctxpack-dir/ --mode merge [--base <dir|export-id|ref>] [--require-base] [--strict-edits]
+carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|ref>]
 ```
 
 `--pack-format`（而非 `--format`）：全局 `--format text|json|markdown` 控制
 输出信封渲染，不得复用。`--stdout` 在 v1 返回 `UNSUPPORTED_OPERATION`，
 单文件传输用外部管道：`tar -cf - ./ctxpack-dir/ | ssh host 'tar -xf -'`。
 
+### ctxpack 格式 v1 / v2（CTX-0139）
+
+- manifest v2 新增：`parents`（有序 export-id DAG，首次导出为 `[]`，据此可离线
+  重建合并基线的祖先链）、`redacted`（发布产物标记，默认 `false`）、可选
+  per-table `watermarks`（行数与最大时间戳，仅用于优化与一致性检查，合并正确性
+  不依赖它）；目录新增 `tombstones.jsonl`，`counts.tombstones` 即使为 `0`
+  也必须存在并通过校验。
+- 本地 schema 具备 tombstone 侧表（schema 18）后 `export` 写 v2；此前仍写
+  v1，旧库保持字节兼容。`format_version` 与 `schema_version` 相互独立。
+- v1 支持窗口（DEC-0051 #8）：v2 writer 发布后 v1 bundle 保持可读一个 release
+  cycle，读取时在内存中迁移为隐式 v2（`parents = []`、无 watermarks、空
+  tombstone 集，`redacted` 标记保留）；v1 bundle 若携带 tombstone 行则按计数
+  校验失败处理（`VALIDATION_FAILED`），不静默丢弃。
+- 比 reader 更新的 format 或 schema 以 `UNSUPPORTED_OPERATION`（exit 10）
+  拒绝，不写入任何内容。
+
 - 新仓库导入等价于 `init`（复用包内 `project_id`）+ 落库 + 绝对路径重锚定，
   并追加 `project.imported` 事件；`.carryctx/config.toml` 已存在且 `project.id`
   不一致时返回 `STATE_CONFLICT`。
 - 已初始化项目上裸 `import` 返回 `STATE_CONFLICT`（exit 3）并提示
-  `--mode replace`；`--mode replace --yes` 做整库替换，`--mode merge`
-  走三方合并（CTX-0142/0143，详见 §12.2）。
+  `--mode replace`；`--mode replace --yes` 做整库替换。
+- `--mode merge`（CTX-0142/0143，详见 §12.2）在三方合并基础上：
+  - base 解析顺序（design §2.1）：显式 `--base <dir|export-id|ref>` > export-id
+    DAG 的最近公共祖先（本地 snapshot 缓存与 snapshot ref 历史，离线读取）>
+    ours snapshot > base-less 降级的 2-way 合并（envelope 与 merge report 报
+    `base: null`、`degraded: true`）；`--require-base` 在无可用祖先时以
+    `VALIDATION_FAILED`（exit 8）拒绝。
+  - 项目身份：`project_id` 不一致返回 `STATE_CONFLICT`（exit 3）；
+    `manifest.redacted: true` 的 bundle 作为 merge 源返回
+    `UNSUPPORTED_OPERATION`（exit 10）；fresh target 走 fresh import 路径。
+  - 合并语义：行级 LWW（按 `updated_at`）、单调事实 NULL-union、任务状态格
+    （terminal wins；`completed` vs `cancelled` 为唯一阻断状态对）、tombstone
+    删除规则、display-id 冲突自动改号、agent 名称冲突自动 alias、append-only
+    表按 id 并集；`--strict-edits` 把 row_edit 的自动 LWW 提升为阻断冲突。
+  - 冲突 staging：阻断冲突写 `<git-common-dir>/carryctx/merges/<merge_id>/`
+    （`merge.json` / `conflicts.json` / `candidate.sqlite` / `theirs/`），以
+    `MERGE_CONFLICTS`（exit 3，带 `details.mergeId`、`details.conflicts`）
+    退出，live DB 与 refs 不变；同一项目同时只允许一个活动 merge。
+  - clean apply：验证过的 pre-merge backup + restore-journal 原子交换，追加
+    恰好一个 `project.merged` 事件以及 `merge.auto_resolved` /
+    `merge.display_id_renumbered`（`baseSource` provenance）事件；任一步失败
+    都保持 live DB、staging 与 candidate 原样，重试安全。
+  - merge 不需要 `--yes`（组合状态而非丢弃状态）；`--yes` 仍保留给 `replace`。
+  - `--dry-run` 只执行校验与合并计划，不写 DB、不写 ref、不建目录。
 - 信封命令名：`export.create` / `import.create`；`--dry-run` 下
   `data.operation.applied` 为 `false` 且不写入任何内容。
 
@@ -676,7 +727,7 @@ git push <remote> refs/carryctx/local:refs/heads/state
 
 ---
 
-## 12.2 `carryctx conflict`（CTX-0143，Unreleased）
+## 12.2 `carryctx conflict`（CTX-0143/CTX-0145）
 
 `import --mode merge` 在三方合并产生阻断冲突时，把合并会话写入
 `<git-common-dir>/carryctx/merges/<merge_id>/`（`merge.json`、
@@ -1752,6 +1803,8 @@ JSON Envelope 结构（`schema_version`/`command`/`success`/`data`/`meta`）保�
 12  Interrupted
 ```
 
+Exit code `3` 覆盖 `STATE_CONFLICT` 与 `MERGE_CONFLICTS` 两个公共错误码。
+
 Exit Code 必须视为公共 API。
 
 发布稳定版本后不得随意修改。
@@ -1820,7 +1873,7 @@ experimental:
   worktree bind/list/show/status/unbind/remove
   graph add-node/link/extract-deps/scan/export/edges
   mcp
-  export/import (top-level, ctxpack dir v1; --mode merge deferred)
+  export/import (top-level, ctxpack dir v1/v2; --mode merge, conflict, --snapshot)
 
 deferred:
   project export/import (reserved name; use top-level export/import)

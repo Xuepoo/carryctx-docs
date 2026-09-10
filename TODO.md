@@ -10,28 +10,31 @@ long-term invariants in `architecture/`. `ROADMAP.md` sets direction;
 - [ ] Implement the version-metadata CI check specified in
       `architecture/state-transport-boundary.md` §7 (CLI-repo work): extract the
       CLI, ctxpack-format, DB-schema, and skill-surface values from their sources
-      of truth, compare the exact JSON shape, and fail on drift. Reconcile the
-      known `use-carryctx` drift (skill frontmatter `1.1.0` versus a README that
-      still claims a `v0.8.0` surface — now `v0.9.0`; history anchor for 0.8.2 gate in design/2026-09-09-ctxpack-export-import.md §9).
+      of truth, compare the exact JSON shape, and fail on drift. The
+      `use-carryctx` surface is aligned as of 0.10.0 (skill frontmatter
+      `1.2.0`, `min_carryctx 0.10.0`, README `v0.10.0`; merge-milestone
+      contract values: ctxpack `format_version` `2`, DB schema `18`).
 
 ## Lifecycle hooks
 
 - [ ] Land design CTX-0010 (owner: doc-2, in progress), then implement trust,
       timeout, output limits, reentrancy guards, and failure policy.
 
-## ctxpack v1 hardening (before any merge semantics)
+## ctxpack hardening (merge semantics shipped in 0.10.0)
 
 - [ ] Export profiles and privacy review: hostname, paths, agent names, and
       task text in the manifest source block and JSONL.
 - [ ] Machine-local field audit: worktree paths,
       `sessions.working_directory`, and re-anchor plus prune warnings.
-- [ ] Diff and inspection UX for bundles before import.
+- [ ] Diff and inspection UX for bundles before import (including
+      `snapshot log` / `snapshot diff`).
+- [ ] Redacted publication flow on the dedicated public
+      `refs/heads/carryctx-snapshots` ref (DEC-0052, issue #138).
 
 ## Docs single source of truth
 
-- [ ] Point `manual/2-cli-reference/1-project-lifecycle.md` at `export` /
-      `import` (ctxpack dir v1); the website manual generates or syncs from
-      `manual/` (website-repo work).
+- [ ] Website manual generates or syncs from `manual/` (website-repo work);
+      the lifecycle manual now points at `export` / `import`.
 
 ## Carried-over correctness items (verified still open 2026-09-09: no callers in `carryctx-cli/src`)
 

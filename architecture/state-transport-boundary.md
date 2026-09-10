@@ -57,14 +57,14 @@ or a separate utility.
 
 ## 4. Worked examples
 
-| Belongs in Core                                                                                                | Belongs outside Core                                                    |
-| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `export` / `import`: serialization, validation, replace-import, conflict refusal, re-anchor, pre-import backup | `tar` / `zstd` / `age` pipes, `scp` / `ssh`, snapshot-branch `git push` |
-| `sync push` / `pull` as local-path whole-file copy                                                             | Anything with URL-, host-, or protocol-aware arguments                  |
-| Hook dispatch plus local script execution (designed in CTX-0010)                                               | The sync/backup/notify scripts themselves                               |
-| `preset install` from a local directory                                                                        | Preset download (`git clone`, done by the user)                         |
-| MCP server over stdio                                                                                          | Network MCP transports, cloud dashboards                                |
-| `doctor`, integrity checks, migration guards                                                                   | Remote health checks of other machines                                  |
+| Belongs in Core                                                                                                                                              | Belongs outside Core                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `export` / `import`: serialization, validation, replace-import, three-way merge with conflict staging/resolution, re-anchor, pre-import and pre-merge backup | `tar` / `zstd` / `age` pipes, `scp` / `ssh`, snapshot-ref `git push` / `fetch` |
+| `sync push` / `pull` as local-path whole-file copy                                                                                                           | Anything with URL-, host-, or protocol-aware arguments                         |
+| Hook dispatch plus local script execution (designed in CTX-0010)                                                                                             | The sync/backup/notify scripts themselves                                      |
+| `preset install` from a local directory                                                                                                                      | Preset download (`git clone`, done by the user)                                |
+| MCP server over stdio                                                                                                                                        | Network MCP transports, cloud dashboards                                       |
+| `doctor`, integrity checks, migration guards                                                                                                                 | Remote health checks of other machines                                         |
 
 Two readings deserve emphasis. First, `carryctx sync` is grandfathered **only**
 under its current contract: a local `--remote` path, whole-file,
@@ -77,12 +77,16 @@ refused by design.
 
 ## 5. Consequences
 
-1. **Merge stays deferred.** `merge`, three-way, DAG, `snapshot log/diff`,
-   and `conflict list/show/resolve` wait until real multi-machine usage shows
-   what each entity type (task, session, event, team, worktree) needs.
-   The v1 manifest already reserves `parents` and `sequences`; v1 readers
-   shape-check and ignore them. `--mode merge` reports
-   `UNSUPPORTED_OPERATION` until that milestone.
+1. **Semantic merge lives in Core; transport stays external.** The merge
+   milestone (design `2026-09-10-mergeable-git-managed-state.md`) shipped in
+   `0.10.0`: ctxpack v2 (`parents` DAG, tombstones, `redacted` flag), the
+   three-way row merge, conflict staging and resolution (`import --mode merge`,
+   `conflict list/show/resolve/apply/abort`), and local snapshot Git refs
+   (`export --snapshot`, `import --from-git`, with two-parent merge commits).
+   The boundary is unchanged: snapshot refs are local Git objects under
+   `refs/carryctx/local`, `git push` and `git fetch` remain user transport, and
+   the binary neither pushes nor fetches. A public redacted publication flow and
+   `snapshot log/diff` UX remain follow-ups, not Core network features.
 2. **No native single-file compression in v1.** The interchange stays a
    `dir` layout (git-diff friendly, zero new dependencies); single-file
    movement is a documented external recipe
@@ -115,12 +119,12 @@ Four contracts must never drift silently again. Each has exactly one source
 of truth; the table is the expected snapshot. A wave-2 CLI-repo task
 implements the check this section specifies — docs work stops at the spec.
 
-| Contract         | Source of truth                                                                                                                                                                                     | Current value                                                                                                                                     |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cli`            | `carryctx-cli/Cargo.toml`, `package.version` (runtime cross-check: `carryctx --version`, MCP `initialize` server info — both `env!("CARGO_PKG_VERSION")`)                                           | `0.9.0`                                                                                                                                           |
-| `ctxpack-format` | `crates/carryctx-core/src/domain/pack.rs` (`PACK_FORMAT` + `PACK_FORMAT_VERSION`; pre-P1 at `carryctx-cli/src/domain/pack.rs`)                                                                      | `carryctx-pack-dir`, `format_version` `1`                                                                                                         |
-| `db-schema`      | `crates/carryctx-*/src/adapter/sqlite.rs` migration list (`crates/carryctx-sqlite` post-P2; pre-P2 at `carryctx-cli/src/adapter/sqlite.rs`), matching `migrations/project/NNNN_*.sql` (latest wins) | `17` (`0017_worktree_cleanup_requests`)                                                                                                           |
-| `skill-surface`  | `carryctx-skills/skills/use-carryctx/SKILL.md` frontmatter `version`, plus the minimum CLI surface the skill claims to cover                                                                        | skill `1.1.0`; `v0.9.0` surface (0.8.x → 0.9.0 aligned; history anchor for 0.8.2 gate preserved in design/2026-09-09-ctxpack-export-import.md §9) |
+| Contract         | Source of truth                                                                                                                                                                                     | Current value                                                                                 |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `cli`            | `carryctx-cli/Cargo.toml`, `package.version` (runtime cross-check: `carryctx --version`, MCP `initialize` server info — both `env!("CARGO_PKG_VERSION")`)                                           | `0.10.0`                                                                                      |
+| `ctxpack-format` | `crates/carryctx-core/src/domain/pack.rs` (`PACK_FORMAT` + `PACK_FORMAT_VERSION`; pre-P1 at `carryctx-cli/src/domain/pack.rs`)                                                                      | `carryctx-pack-dir`, `format_version` `2` (v1 readable for one release cycle per DEC-0051 #8) |
+| `db-schema`      | `crates/carryctx-*/src/adapter/sqlite.rs` migration list (`crates/carryctx-sqlite` post-P2; pre-P2 at `carryctx-cli/src/adapter/sqlite.rs`), matching `migrations/project/NNNN_*.sql` (latest wins) | `18` (`0018_tombstones_snapshot_state`)                                                       |
+| `skill-surface`  | `carryctx-skills/skills/use-carryctx/SKILL.md` frontmatter `version`, plus the minimum CLI surface the skill claims to cover                                                                        | skill `1.2.0`; `min_carryctx 0.10.0` (0.8.x → 0.10.0 aligned)                                 |
 
 The check compares this exact JSON shape with strict equality; any mismatch
 fails the gate:
@@ -128,13 +132,13 @@ fails the gate:
 ```json
 {
   "contract_versions": {
-    "cli": "0.9.0",
-    "ctxpack_format": { "format": "carryctx-pack-dir", "format_version": 1 },
-    "db_schema": 17,
+    "cli": "0.10.0",
+    "ctxpack_format": { "format": "carryctx-pack-dir", "format_version": 2 },
+    "db_schema": 18,
     "skill_surface": {
       "skill": "use-carryctx",
-      "version": "1.1.0",
-      "min_carryctx": "0.9.0"
+      "version": "1.2.0",
+      "min_carryctx": "0.10.0"
     }
   }
 }
@@ -157,7 +161,7 @@ Check procedure (normative for the wave-2 implementation):
    flag with stale examples fails the same gate.
 4. **Bump rule.** A version bump is one reviewable change: source-of-truth
    edit, plus this table, plus the `cli-specification.md`
-   applicability note, plus `CHANGELOG.md`. Tagging follows the 0.9.0/current gate
+   applicability note, plus `CHANGELOG.md`. Tagging follows the 0.10.0/current gate
    (ctxpack design §9, history anchor for 0.8.2 preserved): review closed, `cargo fmt --check`, Clippy with
    `-D warnings`, `cargo test`, markdownlint, package-smoke, and the
    acceptance matrix green.
@@ -167,6 +171,7 @@ Check procedure (normative for the wave-2 implementation):
 - `architecture/zero-network-policy.md` (network ban, CI dependency gate,
   local-only `sync` exception).
 - `design/2026-09-09-ctxpack-export-import.md` (interchange v1 contract,
-  fail-closed import, deferred merge).
+  fail-closed import, deferred merge — completed by
+  `design/2026-09-10-mergeable-git-managed-state.md`).
 - Workspace research note 001 (2026-09-09): version drift (P0), hooks
   re-design, ROADMAP/TODO cleanup, ctxpack hardening before merge.

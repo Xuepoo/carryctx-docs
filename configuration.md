@@ -1,8 +1,8 @@
 # CarryCtx 配置与存储规范
 
 **文档路径：** `carryctx-docs/configuration.md`
-**文档版本：** v0.9.0
-**适用版本：** CarryCtx v0.9.x
+**文档版本：** v0.10.0
+**适用版本：** CarryCtx v0.10.0 / v0.10.x（merge milestone 起）
 
 ---
 
@@ -329,6 +329,11 @@ verbose = false
 "handoff.list" = ["display_id", "status", "summary"]
 ```
 
+merge milestone（0.10.0 起）未引入 `[snapshot]` 或 `[merge]` 配置键：snapshot
+ref、`--mode merge`、`--base`、`--require-base`、`--strict-edits` 只作为命令
+参数出现，不进入项目配置；合并 staging 与快照缓存目录位置由 XDG /
+Git-common 路径规则固定（见 §4）。
+
 ---
 
 ## 3.2 `.carryctx/config.local.toml`
@@ -439,13 +444,20 @@ $(git rev-parse --git-common-dir)/carryctx/
 ├── state.sqlite
 ├── state.sqlite-wal
 ├── state.sqlite-shm
+├── archive.sqlite
 ├── backups/
-├── migrations/
+├── journals/
 ├── locks/
-└── metadata.json
+│   └── command.lock
+├── snapshots/          # 可选：<export_id>/ 本地 bundle 缓存（merge base 解析用）
+└── merges/             # 活动合并 staging：<merge_id>/{merge.json,conflicts.json,candidate.sqlite,theirs/}
 ```
 
 该目录能够被同一个 Git repository 的所有 linked worktree 访问。
+`snapshots/` 与 `merges/` 是机器本地目录：从不进入 ctxpack、从不被
+`push`/`fetch`，其中 `merges/` 由 `import --mode merge` 的冲突 staging 创建
+（0.10.0 起），`snapshots/<export_id>/` 由用户手工放置 bundle 以支持离线
+base 解析，CarryCtx 不会自动上传或同步它们。
 
 ---
 
@@ -470,6 +482,8 @@ $(git rev-parse --git-common-dir)/carryctx/
 - Decision
 - Handoff
 - Event
+- Tombstone（硬删除记录侧表，schema 18 起；仅 merge 使用，普通查询不读取）
+- Snapshot State（本地快照/合并基线记账，从不导出）
 - Project-level metadata
 
 该数据库是项目运行状态的 Source of Truth。
@@ -512,6 +526,8 @@ state-2026-07-22T183000Z-v1.sqlite
 - Database restore
 - 批量数据导入
 - 不可逆数据转换
+- `import --mode merge` / `conflict apply` 的原子交换（验证过的 pre-merge
+  backup，路径在成功信封的 `preMergeBackupPath` 返回；0.10.0 起）
 
 ---
 

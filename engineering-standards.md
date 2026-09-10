@@ -210,7 +210,7 @@ carryctx-cli/                  # Cargo workspace root
 > **0.9.1 sync --remote 必填（CTX-0129）：**`sync push/pull --remote` 删除 `/tmp/carryctx-remote` 默认值，改为必填（BREAKING vs 0.9.0，消除与 `cli-spec` 必填路径形的漂移；裸 `carryctx sync push` 现报 `required arguments were not provided: --remote`）。
 >
 > **0.9.1 硬编码扫描结论（CTX-0130）：**全仓（`crates/` + `src/` + `tests/`）除 `sync.rs` 外无 A 类用户面硬编码绝对路径；`xdg.rs` 的 `HOME` 缺失 `unwrap_or("/tmp")` 为标准 dirs fallback（C 类，保留）；其余 `/tmp/*` 均为 `#[cfg(test)]` 夹具（B 类，保留）。
-
+>
 > **P2 交付边界（carryctx-sqlite）：**`crates/carryctx-sqlite` 已物理隔离并通过 `cargo check --workspace` / `cargo test --workspace`；`src/adapter/sqlite*.rs`、`src/adapter/unit_of_work.rs`、`src/repository/graph.rs|search.rs` 在根 crate 保留为 thin re-export 桥接（0.9.1 起根 `src/` 仅留 facade `src/lib.rs` 转发 `carryctx_cli::*`），CLI 契约零变化。`carryctx-core` 保持纯域（P1），`carryctx-sqlite` 拥有迁移/WAL/backup/journal 及 repository 实现。
 >
 > **P3 交付边界（carryctx-vcs）：**`crates/carryctx-vcs` 已物理隔离并通过 `cargo check --workspace`（4 members）/ `cargo test --workspace`；`src/adapter/git.rs`、`src/adapter/xdg.rs` 在根 crate 保留为 thin re-export 桥接（0.9.1 起同上走 facade），`VcsBackend { kind/repository_root/head/status/create_workspace/capabilities }` + `VcsCapabilities { workspaces, commit_hooks, staging_area, mutable_changes }`（Git Tier 1 / jj optional runtime `Command::new("jj")` 无 Cargo feature 矩阵，`auto` 规则 `.jj` 存在则 JjBackend 否则 Git），CLI 契约零变化（`carryctx worktree --help` 保持不变，capability 感知行为由 backend 分发）。
