@@ -83,7 +83,7 @@ The core CLI ships a `carryctx sync` command. It is **not** a network feature an
 
 - `sync push` copies `<git-common-dir>/carryctx/state.sqlite` to `<remote>/<git-common-dir-name>.sqlite` with `std::fs::copy` (`crates/carryctx-*/src/application/sync.rs:32` transitional; pre-P2 at `carryctx-cli/src/application/sync.rs:32`).
 - `sync pull` copies that file back in the same way (`crates/carryctx-*/src/application/sync.rs:74` transitional; pre-P2 at `carryctx-cli/src/application/sync.rs:74`).
-- `--remote` is a filesystem path, defaulting to `/tmp/carryctx-remote` (`crates/carryctx-*/src/commands/sync.rs:11`, `:17` transitional; pre-P5 at `carryctx-cli/src/commands/sync.rs:11`, `:17`).
+- `--remote` is a required filesystem path with no default — pick a path you control (e.g. a Syncthing folder or NAS mount) (`crates/carryctx-*/src/commands/sync.rs:11`, `:17` transitional; pre-P5 at `carryctx-cli/src/commands/sync.rs:11`, `:17`).
 
 The binary contains no network stack, so `--remote` can only ever resolve to a path the operating system already exposes. Reaching another machine is possible only if the user has independently mounted remote storage (NFS, SMB, or similar) — the transport is then owned by the OS, not by `carryctx`, which matches the "External Responsibilities" rule in §2.
 
