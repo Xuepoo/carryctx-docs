@@ -71,13 +71,21 @@ Every mergeable row is keyed by a stable identity that survives transport:
 | Kind                | Identity key                                               |
 | ------------------- | ---------------------------------------------------------- |
 | ULID tables         | `id` (ULID; never regenerated on import)                   |
-| `team_members`      | `(project_id, team_id, agent_id)`                          |
+| `team_members`      | `(team_id, agent_id)` — 2-part tombstone `row_id` form     |
 | `graph_edges`       | `(source_id, target_id, relation_type)`                    |
 | `task_dependencies` | `id`, plus semantic edge `(task_id, prerequisite_task_id)` |
 | `scopes`            | `id`, plus semantic key `(task_id, pattern)`               |
 | `projects`          | single row per project                                     |
 | `sequences`         | `(project_id, kind)` — derived, reconciled separately      |
 | `tombstones`        | `(project_id, table_name, row_id)`                         |
+
+Composite identity keys MUST match the storage delete-path convention
+byte-for-byte. The tombstone `row_id` is `canonical_composite_row_id(...)` — a
+JSON array of the key components — and omits `project_id`, because the
+tombstone's own `project_id` column scopes it. A merge always runs within one
+project (`project_id` is constant), so `team_members` is keyed by
+`(team_id, agent_id)`. An engine key that disagrees with the tombstone
+`row_id` never matches a deletion and would resurrect a deleted row.
 
 Display ids (`CTX-xxxx`, `DEC-xxxx`, `PX-xxxx`, `HO-xxxx`) are **not** identity.
 When two independently allocated rows collide on a display id during merge,
