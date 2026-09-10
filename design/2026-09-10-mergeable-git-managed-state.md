@@ -11,8 +11,9 @@ workflows live under Git management.
 **Goal:** make CarryCtx state mergeable across parallel worktrees, cloned
 branches, and machines: row-level identity and delete semantics, a three-way
 merge with the base taken from the ctxpack DAG, conflict staging and
-resolution, and a `carryctx-snapshots` Git ref that records one commit per
-state snapshot with the same parent edges as the manifest.
+resolution, and a local-only snapshot Git ref (`refs/carryctx/local`) that
+records one commit per state snapshot with the same parent edges as the
+manifest.
 
 **Directive (2026-09-10):** all workflows under Git management; the CarryCtx
 state should be git-like and mergeable — parallel worktrees and branches must
@@ -249,9 +250,9 @@ format v3 must ship a v2→v3 migrator before any writer emits it.
 1. **ours** is the live database; its position is `snapshot_state.last_export_id`
    (recorded by `export --snapshot`) or an explicit `--base`/ref override.
 2. **theirs** is the bundle; its parents are `manifest.parents` (v2).
-3. The DAG lives in the `carryctx-snapshots` ref: each commit's trailers carry
-   its `export_id` and parents, so ancestor snapshots are readable with Git
-   plumbing and no network.
+3. The DAG lives in the local snapshot ref (`refs/carryctx/local`): each
+   commit's trailers carry its `export_id` and parents, so ancestor snapshots
+   are readable with Git plumbing and no network.
 4. The **newest common ancestor** wins. Criss-cross histories pick the
    greatest export id deterministically; recursive merge bases are out of
    scope.
@@ -324,7 +325,7 @@ steps 1–5 and writes nothing.
 
 ```bash
 carryctx import ./bundle-b --mode merge            # stages conflicts, exit 3
-carryctx import refs/remotes/origin/carryctx-snapshots --mode merge --from-git
+carryctx import refs/remotes/origin/carryctx-local --mode merge --from-git
 carryctx conflict list [--all] [--merge <id>]
 carryctx conflict show <conflict-id> [--format json]
 carryctx conflict resolve <conflict-id> --ours|--theirs [--set field=value]
@@ -362,9 +363,9 @@ reserved for `replace` and other whole-state discards.
 
 ## 3. Git integration
 
-### 3.1 `carryctx-snapshots` branch layout
+### 3.1 Local snapshot ref layout
 
-One branch per clone, `refs/heads/carryctx-snapshots`, sharing the repository's
+One local-only ref per clone, `refs/carryctx/local`, sharing the repository's
 common Git directory across worktrees. **One commit per snapshot**, with the
 pack directory at the commit root (so `git show <ref>:tasks.jsonl` works and
 `git diff` between snapshots reads as a state diff):
@@ -374,6 +375,13 @@ c3  merge snapshot (parents c2, c9)   chore(ctxpack): merge 01M... (01M... + 01M
 c2  snapshot (parent c1)              chore(ctxpack): snapshot 01M... (main @ abc1234)
 c1  initial snapshot (no parent)      chore(ctxpack): snapshot 01M...
 ```
+
+The ref deliberately lives outside `refs/heads/*` (DEC-0052, issue #138): a
+plain `git push` — even `push --all` — cannot move it, so publishing
+unredacted state requires an explicit user refspec. The public redacted
+publication ref `refs/heads/carryctx-snapshots` is a _different_ ref reserved
+for the redaction/publication flow; unredacted `export --snapshot` refuses it.
+CarryCtx never pushes any ref.
 
 Each commit message carries trailers used to reconstruct the DAG without any
 index file:
@@ -394,7 +402,7 @@ state-transport boundary allows.
 
 ```bash
 carryctx export --pack-format dir -o ./pack/ --snapshot \
-    [--snapshot-ref refs/heads/carryctx-snapshots]
+    [--snapshot-ref refs/carryctx/local]
 ```
 
 After the bundle is written and validated, the commit is created with parent
@@ -405,8 +413,9 @@ stays `parents = []`.
 
 ### 3.3 Clone and branch history
 
-A clone gets `refs/remotes/origin/carryctx-snapshots` when the ref has been
-pushed, and `git fetch` (user-run, like any transport) brings updates. State
+A clone gets `refs/remotes/origin/carryctx-local` when the local ref has been
+pushed with an explicit refspec, and `git fetch` (user-run, like any
+transport) brings updates. State
 is per repository, not per code branch: worktrees of one clone share the
 SQLite database, so there is nothing to merge between them; merges happen
 between clones/machines (or a clone and a transported bundle). Because the
@@ -438,24 +447,34 @@ that is a safety net, not a supported path.
 
 ### 3.6 Redaction and public repositories
 
-Snapshots on the ref are unredacted by definition; redaction destroys merge
-fidelity (`***REDACTED***` would overwrite real values). Policy:
+Snapshots on the local ref are unredacted by definition; redaction destroys
+merge fidelity (`***REDACTED***` would overwrite real values). Policy
+(DEC-0052, issue #138):
 
-- The snapshot ref is local by default; pushing it is the user's choice.
+- The local unredacted snapshot ref lives under `refs/carryctx/` (default
+  `refs/carryctx/local`), deliberately outside `refs/heads/*`: a plain
+  `git push` (even `--all`) cannot move it, and CarryCtx never pushes it.
+  Publishing unredacted state requires an explicit user refspec.
+- Public redacted publication uses a dedicated branch
+  `refs/heads/carryctx-snapshots` (publication flow). The refs stay distinct:
+  unredacted export refuses `refs/heads/carryctx-snapshots` and every other
+  `refs/heads/*` target with `INVALID_ARGUMENTS`.
 - **Never push an unredacted snapshot ref to a public repository.** Use a
   private state remote, an encrypted transport, or exchange pack directories
   directly.
 - Redacted bundles (`manifest.redacted: true`) are publication artifacts and
   are refused as merge sources; fresh/replace import may still accept them.
+- A guard test in CTX-0144 asserts the local-only ref never uses or moves the
+  public ref and cannot be published by a default `git push`.
 
 ### 3.7 Status of CTX-0122
 
 CTX-0122 ("publish project state snapshots to `carryctx-snapshots` branch")
-is `in_progress` with an owner but has no branch, no commits, no progress
-notes, and no PR. The `git_snapshot.rs` domain type in `carryctx-core` is a
-different concept (per-checkpoint worktree state). This design defines the
-branch contract from scratch; the commander should re-scope or close
-CTX-0122 in favor of CTX-0144/CTX-0145 rather than resurrect an empty claim.
+was closed unmerged (PR #134). Its redaction and redacted-publication behavior
+folds into a publication follow-up after CTX-0144/CTX-0145, using the distinct
+public ref `refs/heads/carryctx-snapshots` (DEC-0051 #7, DEC-0052, issue #138).
+The `git_snapshot.rs` domain type in `carryctx-core` is a different concept
+(per-checkpoint worktree state).
 
 ---
 
@@ -583,17 +602,24 @@ Migration notes:
 4. **Snapshot-ref push policy for public repos.** Confirm that unredacted
    snapshots are never pushed to public product repos and that `-workflow`
    mirrors stay redacted, review-only.
+   _Resolved by DEC-0051 #4 / DEC-0052: distinct refs — local-only unredacted
+   `refs/carryctx/local`, public redacted `refs/heads/carryctx-snapshots`; the
+   local ref is never pushed by CarryCtx and is refused the public name._
 5. **Base-less merge default.** Degrade to tombstone-aware 2-way with a
    warning, or refuse unless `--base`/`--require-base`?
 6. **New error code.** Is `MERGE_CONFLICTS` (exit 3) acceptable as public
    API, or should it collapse into `STATE_CONFLICT`?
 7. **CTX-0122 disposition.** Re-scope it under CTX-0144/CTX-0145 or close it
    as superseded.
+   _Resolved by DEC-0051 #7: PR #134 closed unmerged; redacted publication
+   folds into a publication follow-up after CTX-0144/CTX-0145 (issue #138)._
 8. **Format v1 support window.** How long must v1 bundles stay mergeable
    (degraded) before readers may require v2?
 9. **Snapshot commit cadence.** One commit per export vs debounced/amended
    commits for high-frequency exports; and whether plain `export` should gain
    `--snapshot` by default in the future.
+   _Resolved by DEC-0051 #9: one commit per export, `--snapshot` stays
+   opt-in; debouncing revisited later._
 
 ## 9. Work breakdown (created in `carryctx-cli`, 2026-09-10)
 
@@ -607,7 +633,7 @@ All tasks were created with agent `cmd-001`, `Priority: P1`,
 | CTX-0141 | Pure three-way merge engine: LWW rows, status lattice, base selection        | CTX-0138, CTX-0139, CTX-0140 |
 | CTX-0142 | `import --mode merge`: staging, conflict report, atomic apply                | CTX-0141                     |
 | CTX-0143 | `conflict list/show/resolve/apply/abort` UX                                  | CTX-0142                     |
-| CTX-0144 | `carryctx-snapshots` ref: commit-per-snapshot export, import-from-git        | CTX-0139, CTX-0142           |
+| CTX-0144 | local snapshot ref: commit-per-snapshot export, import-from-git              | CTX-0139, CTX-0142           |
 | CTX-0145 | Merged snapshot commits after `--mode merge`                                 | CTX-0142, CTX-0144           |
 | CTX-0146 | Three-way fixtures + two-clone git e2e + conflict matrix                     | CTX-0142, CTX-0143, CTX-0145 |
 | CTX-0147 | Docs sync: cli-spec, configuration, ADR/roadmap/TODO, manual, skill          | CTX-0143, CTX-0145           |
