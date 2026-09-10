@@ -563,12 +563,19 @@ carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|r
 - `export --snapshot` 在 bundle 写入并校验通过后，把 pack 目录作为一次
   commit 写到本地 `--snapshot-ref`（默认 `refs/heads/carryctx-snapshots`），
   每个快照一个 commit（Git plumbing：`hash-object`/`mktree`/`commit-tree`/
-  `update-ref` 比较交换），不触碰索引、工作树或网络。commit message 带
+  `update-ref` 比较交换），不触碰索引、工作树或网络。commit subject 形如
+  `chore(ctxpack): snapshot <export_id> (<branch> @ <short-sha>)`，message 带
   `CarryCtx-Export-Id` / `CarryCtx-Parents` / `CarryCtx-Source` trailer，
   据此可离线重建 export-id DAG。`manifest.parents` 记录当前 ref tip 的
-  export id，因此 bundle 脱离 Git 也自描述。成功后更新 `snapshot_state` 的
-  `last_export_id` 与 `last_snapshot_commit`；成功信封新增
-  `data.snapshot = {ref, commit, previousCommit, parentExportIds, parents, source}`。
+  export id，因此 bundle 脱离 Git 也自描述。成功后在同一事务内更新
+  `snapshot_state` 的 `last_export_id` 与 `last_snapshot_commit`；成功信封新
+  增 `data.snapshot = {ref, commit, previousCommit, parentExportIds, parents, source}`。
+- `--snapshot-ref` 必须是 `refs/` 开头的完整 ref 名并通过
+  `git check-ref-format`；`refs/heads/*` 目标只允许 `carryctx-*` 分支且不得
+  是当前检出的分支（因此 `main`、`HEAD`、短 rev、`refs/heads/main` 均以
+  `INVALID_ARGUMENTS`（exit 2）拒绝），其他 `refs/...` 命名空间（如
+  `refs/carryctx/snapshots`）允许。默认值 `refs/heads/carryctx-snapshots`
+  可直接使用。
 - 不带 `--snapshot` 的普通 `export` 仍写 `parents = []`，不写 ref、不更新
   `snapshot_state`。`--snapshot --dry-run` 只报告将写入的 ref/tip/parents
   （`data.snapshot.wouldCommit`），不写 ref、不写 `snapshot_state`、不建目录。
@@ -578,7 +585,8 @@ carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|r
   bundle 目录（固定 `PACK_TABLE_FILES` 列表），随后走与目录导入完全相同的
   validate/import/merge 路径；临时目录用完即删。`--from-git` 与位置参数
   `<DIR>` 互斥且必须二选一，否则 `INVALID_ARGUMENTS`（exit 2）；ref 不存在或
-  非 Git 仓库返回 `GIT_ERROR`（exit 4）。
+  非 Git 仓库返回 `GIT_ERROR`（exit 4）。`--from-git` 与 `--base` 的值不得以
+  `-` 开头，否则 `INVALID_ARGUMENTS`（exit 2）。
 - `--mode merge` 的 base 解析可按 §2.1 顺序读取同一 ref 或 `--base` 指向的
   Git revision 的历史；祖先快照经 plumbing 离线物化。
 
