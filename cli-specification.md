@@ -527,7 +527,7 @@ carryctx project migrate
 
 ---
 
-## 12.1 `carryctx export` / `carryctx import`（0.8.2 起引入，0.9.0 现行，ctxpack dir v1）
+## 12.1 `carryctx export` / `carryctx import`（0.8.2 起引入，0.9.0 现行，ctxpack dir v1/v2；CTX-0144 起支持快照引用）
 
 离线优先的可移植状态交换格式，与传输方式无关（scp/ssh/NAS/Syncthing/rclone
 均由用户选择，二进制不含网络代码）。SQLite 仍是内部持久化格式；ctxpack
@@ -546,9 +546,47 @@ carryctx import ./ctxpack-dir/ [--mode replace] [--dry-run] [--yes]
   并追加 `project.imported` 事件；`.carryctx/config.toml` 已存在且 `project.id`
   不一致时返回 `STATE_CONFLICT`。
 - 已初始化项目上裸 `import` 返回 `STATE_CONFLICT`（exit 3）并提示
-  `--mode replace`；`--mode merge` 在 v1 返回 `UNSUPPORTED_OPERATION`（exit 10）。
+  `--mode replace`；`--mode replace --yes` 做整库替换，`--mode merge`
+  走三方合并（CTX-0142/0143，详见 §12.2）。
 - 信封命令名：`export.create` / `import.create`；`--dry-run` 下
   `data.operation.applied` 为 `false` 且不写入任何内容。
+
+### 12.1.1 `carryctx-snapshots` 引用（CTX-0144）
+
+```bash
+carryctx export --pack-format dir -o ./pack/ --snapshot \
+    [--snapshot-ref refs/heads/carryctx-snapshots]
+carryctx import ./pack/ [--mode replace|merge]
+carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|ref>]
+```
+
+- `export --snapshot` 在 bundle 写入并校验通过后，把 pack 目录作为一次
+  commit 写到本地 `--snapshot-ref`（默认 `refs/heads/carryctx-snapshots`），
+  每个快照一个 commit（Git plumbing：`hash-object`/`mktree`/`commit-tree`/
+  `update-ref` 比较交换），不触碰索引、工作树或网络。commit message 带
+  `CarryCtx-Export-Id` / `CarryCtx-Parents` / `CarryCtx-Source` trailer，
+  据此可离线重建 export-id DAG。`manifest.parents` 记录当前 ref tip 的
+  export id，因此 bundle 脱离 Git 也自描述。成功后更新 `snapshot_state` 的
+  `last_export_id` 与 `last_snapshot_commit`；成功信封新增
+  `data.snapshot = {ref, commit, previousCommit, parentExportIds, parents, source}`。
+- 不带 `--snapshot` 的普通 `export` 仍写 `parents = []`，不写 ref、不更新
+  `snapshot_state`。`--snapshot --dry-run` 只报告将写入的 ref/tip/parents
+  （`data.snapshot.wouldCommit`），不写 ref、不写 `snapshot_state`、不建目录。
+- ref 更新使用比较交换：并发 worktree 已移动 ref 时以 `GIT_ERROR`（exit 4）
+  失败关闭并提示重试，绝不 force 覆盖。
+- `import --from-git <ref>` 用本地 Git plumbing 把 ref tip 的 tree 物化到临时
+  bundle 目录（固定 `PACK_TABLE_FILES` 列表），随后走与目录导入完全相同的
+  validate/import/merge 路径；临时目录用完即删。`--from-git` 与位置参数
+  `<DIR>` 互斥且必须二选一，否则 `INVALID_ARGUMENTS`（exit 2）；ref 不存在或
+  非 Git 仓库返回 `GIT_ERROR`（exit 4）。
+- `--mode merge` 的 base 解析可按 §2.1 顺序读取同一 ref 或 `--base` 指向的
+  Git revision 的历史；祖先快照经 plumbing 离线物化。
+
+> 安全（design §3.6）：snapshot ref 默认只在本地，**绝不可把未脱敏的
+> snapshot ref 推送到公开仓库**；请使用私有 state 远端、加密通道，或直接
+> 交换 pack 目录。脱敏 bundle（`manifest.redacted: true`）是发布产物，作为
+> merge 源会被拒绝（`UNSUPPORTED_OPERATION`，exit 10），fresh/replace 导入
+> 仍可接受。`push`/`fetch` 始终是用户侧传输，二进制不联网。
 
 ---
 
