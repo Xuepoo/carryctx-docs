@@ -556,8 +556,9 @@ carryctx import ./ctxpack-dir/ [--mode replace] [--dry-run] [--yes]
 ```bash
 carryctx export --pack-format dir -o ./pack/ --snapshot \
     [--snapshot-ref refs/carryctx/local]
-carryctx import ./pack/ [--mode replace|merge]
-carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|ref>]
+carryctx import ./pack/ [--mode replace|merge] [--snapshot-ref [<ref>]]
+carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|ref>] \
+    [--snapshot-ref [<ref>]]
 ```
 
 - `export --snapshot` 在 bundle 写入并校验通过后，把 pack 目录作为一次
@@ -601,6 +602,66 @@ carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|r
 > merge 源会被拒绝（`UNSUPPORTED_OPERATION`，exit 10），fresh/replace 导入
 > 仍可接受。`push`/`fetch` 始终是用户侧传输，二进制不联网。
 
+### 12.1.2 合并快照提交（CTX-0145）
+
+```bash
+carryctx import <dir> --mode merge [--snapshot-ref [<ref>]]
+carryctx import --from-git <ref> --mode merge [--snapshot-ref [<ref>]]
+carryctx conflict apply [--snapshot-ref [<ref>]]
+```
+
+- `import --mode merge` 与 `conflict apply` 在合并原子生效后，若给出
+  `--snapshot-ref`（可省略值，缺省 `refs/carryctx/local`），把合并后的活跃
+  数据库序列化为一次 commit 写到该本地 ref（与 `export` 共用同一份文件
+  序列化逻辑）。该 commit 有**两个 Git parent**，顺序为
+  **[本地 ref tip, 传入快照 commit]**（本地 tip 在前，因此复用的比较交换
+  守卫仍生效）；subject 形如
+  `chore(ctxpack): merge <export_id> (<branch> @ <short-sha>)`，
+  `CarryCtx-Export-Id` / `CarryCtx-Parents` / `CarryCtx-Source` trailer
+  保留，`CarryCtx-Parents` 按同一顺序列出两个 parent export id，新
+  `manifest.parents` 也记录 `[本地 tip export id, 传入 export id]`。成功后
+  在同一事务内更新 `snapshot_state` 的 `last_export_id` 与
+  `last_snapshot_commit`；成功信封新增
+  `data.snapshot = {ref, commit, previousCommit, parentExportIds, parents, source}`。
+- 传入快照 commit 的解析：`--from-git <ref>` 用该 ref 解析出的 tip；目录导入
+  则在本地 snapshot ref 历史中查找 export id 等于
+  `bundle.manifest.export_id` 的 commit。目录 bundle 从未提交到 ref（或本地
+  ref 无 tip）时无法构成双亲历史，此时**跳过**快照提交，并在 `data.warnings`
+  中说明；`conflict apply` 从 `merge.json` 的 `sourceRef`/`sourceCommit`
+  （staging 时写入）读取传入 commit，缺失时同样跳过并告警。本地 snapshot ref
+  的历史也参与 §2.1 的 base 解析，因此跨 clone 的二次合并能解析到公共祖先。
+- 顺序与原子性：数据库原子交换仍是提交点。快照 commit 在交换**成功之后**
+  写入，因此 ref 永远只指向真实活跃的状态；提交失败（例如并发 worktree 移动
+  ref 触发比较交换失败）以 `GIT_ERROR`（exit 4）报错并给出重试提示，但
+  **不回滚**已经持久化并已审计的合并；`snapshot_state` 只在 commit 存在后才
+  写入，绝不会指向不存在的 commit。
+- 未传 `--snapshot-ref` 时，`--mode merge` / `conflict apply` 行为与引入本特性
+  之前完全一致：不写 ref、不更新 `snapshot_state`。`--dry-run` 不写任何内容，
+  仅报告 `data.snapshot.wouldCommit`。
+- `--snapshot-ref` 与 `export --snapshot` 使用同一套校验规则：必须是
+  `refs/carryctx/...`，拒绝 `refs/heads/*` 与公开的
+  `refs/heads/carryctx-snapshots`。`--snapshot-ref` 仅在 `--mode merge` 下有效
+  （其他模式下以 `INVALID_ARGUMENTS`，exit 2 拒绝）。
+
+跨 clone 的离线流程（push/fetch 均由用户执行，二进制不联网）：
+
+```bash
+# A：导出并推送本地快照 ref（显式 refspec）
+carryctx export --pack-format dir -o ./pack --snapshot --snapshot-ref refs/carryctx/local
+git push <remote> refs/carryctx/local:refs/heads/state
+# B：拉取、导入、合并并写出双亲合并快照
+git fetch <remote> refs/heads/state:refs/remotes/origin/state
+carryctx import --from-git refs/remotes/origin/state --mode merge \
+    --snapshot-ref refs/carryctx/local
+git push <remote> refs/carryctx/local:refs/heads/state
+```
+
+> design §3.5：对 snapshot commit 直接执行原生 `git merge` **不受支持**。
+> 逐行合并 JSONL 会破坏 ULID 身份、唯一 display id、sequences、tombstone 与
+> 引用顺序，文本合并出的 tree 可能内部不一致。CarryCtx 自己完成语义合并并写入
+> 合并 commit；需要 Git 层操作时，先
+> `carryctx import --from-git ... --mode merge`，再 `export --snapshot`。
+
 ---
 
 ## 12.2 `carryctx conflict`（CTX-0143，Unreleased）
@@ -617,7 +678,7 @@ carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|r
 carryctx conflict list [--all] [--merge <id>]
 carryctx conflict show <conflict-id> [--merge <id>] [--format markdown]
 carryctx conflict resolve <conflict-id> --ours|--theirs [--merge <id>] [--set field=value]... [--dry-run]
-carryctx conflict apply [--merge <id>] [--skip-open] [--dry-run]
+carryctx conflict apply [--merge <id>] [--skip-open] [--snapshot-ref [<ref>]] [--dry-run]
 carryctx conflict abort [--merge <id>] [--dry-run]
 ```
 
@@ -644,6 +705,9 @@ carryctx conflict abort [--merge <id>] [--dry-run]
   试且不会重复追加事件；已成功应用的会话 `status` 变为 `applied`，再次
   `apply`/`abort`/`--merge <id>` 均按无活动会话处理。`apply --dry-run` 只校
   验与报告（`applied:false`、`wouldApply`），不写入任何内容。
+- 传入 `--snapshot-ref` 时，`apply` 在原子交换成功后按 §12.1.2 写出双亲合并
+  快照 commit（传入 commit 取自 `merge.json` 的 `sourceCommit`）；交换是提交
+  点，快照写入失败只报 `GIT_ERROR` 而不回滚已生效的合并。未传时行为不变。
 - 针对 `unique_key` 冲突（引擎以语义唯一键而非行标识记录），`apply` 先删除
   共享该语义键的落败行并写入 tombstone，再写入所选行，避免 UNIQUE 失败。
   针对 `delete_vs_edit` 解析为删除的 task，`apply` 复用 `project prune` 的级
@@ -661,7 +725,7 @@ carryctx conflict abort [--merge <id>] [--dry-run]
 | list    | `conflict.list`    | `{mergeId,status,degraded,baseSource,counts,open,resolved,conflicts:[{id,kind,table,key,reason,resolution}],autoResolutions:[{table,key,kind,winner,reason}]}` |
 | show    | `conflict.show`    | `{mergeId,status,conflict:{id,kind,table,key,base,ours,theirs,reason,resolution}}`                                                                             |
 | resolve | `conflict.resolve` | `{mergeId,conflictId,choice,resolvedCount,openCount,operation:{applied}}`                                                                                      |
-| apply   | `conflict.apply`   | `{mergeId,applied,resolvedCount,conflicts,counts,path,preMergeBackupPath,warnings,operation:{applied}}`                                                        |
+| apply   | `conflict.apply`   | `{mergeId,applied,resolvedCount,conflicts,counts,path,preMergeBackupPath,warnings,snapshot?,operation:{applied}}`                                              |
 | abort   | `conflict.abort`   | `{mergeId,aborted,operation:{applied}}`                                                                                                                        |
 
 `conflict list` 默认只列未解决冲突（`resolution == null`）；`--all` 额外
