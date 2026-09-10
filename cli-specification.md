@@ -565,9 +565,9 @@ carryctx import ./ctxpack-dir/ [--mode replace] [--dry-run] [--yes]
 ```bash
 carryctx conflict list [--all] [--merge <id>]
 carryctx conflict show <conflict-id> [--merge <id>] [--format markdown]
-carryctx conflict resolve <conflict-id> --ours|--theirs [--merge <id>] [--set field=value]...
+carryctx conflict resolve <conflict-id> --ours|--theirs [--merge <id>] [--set field=value]... [--dry-run]
 carryctx conflict apply [--merge <id>] [--skip-open] [--dry-run]
-carryctx conflict abort [--merge <id>]
+carryctx conflict abort [--merge <id>] [--dry-run]
 ```
 
 - 会话解析：`--merge <id>` 选择指定会话；缺省时选择唯一的活动会话（同时
@@ -578,16 +578,30 @@ carryctx conflict abort [--merge <id>]
   JSON object 中，否则 `VALIDATION_FAILED`（exit 8）。
 - `resolve` 只把 `{choice, fields:{...}, resolvedAt, resolvedBy}` 追加/替换到
   `conflicts.json`（原子写），不修改 `candidate.sqlite`；`resolution` 为
-  `null` 表示未解决，非 null 表示已解决。
+  `null` 表示未解决，非 null 表示已解决。`resolve --dry-run` 完成相同的校验
+  与 `--set` 解析，但不获取锁、不写入，返回 `operation.applied: false`。
 - `apply` 在任一冲突未解决时返回 `MERGE_CONFLICTS`（exit 3，带
-  `details.mergeId` 与 `details.conflicts`），除非 `--skip-open`（未解决冲突
-  保持 ours 并写入 warning）。它在一个事务里把每个 resolution 物化进
-  `candidate.sqlite`，并追加恰好一个 `project.merged`、每个已解决冲突一个
-  `merge.conflict_resolved`，以及 CTX-0142 的 `merge.auto_resolved` /
-  `merge.display_id_renumbered` 事件；随后复用 CTX-0142 的
-  `validate_candidate` 与 restore-journal 原子交换。失败（含 kill）时活跃
-  数据库与会话保持原样；`apply --dry-run` 只校验与报告，不写入任何内容。
-- `abort` 删除整个会话目录，不修改数据库、不写 journal。
+  `details.mergeId` 与 `details.conflicts`），除非 `--skip-open`。
+  `--skip-open` 会为每个未解决冲突补一条 `ours` 解析并真正物化（丢弃
+  incoming 一方），因此结果确实停在 ours，而不只是告警。`apply` 每次都从
+  未改动的 `candidate.sqlite` 重建一份应用镜像（绝不在原地改写），把每个
+  resolution 物化进该镜像，并追加恰好一个 `project.merged`、每个已解决/被
+  `--skip-open` 结算的冲突一个 `merge.conflict_resolved`，以及 CTX-0142 的
+  `merge.auto_resolved` / `merge.display_id_renumbered` 事件；随后复用
+  CTX-0142 的 `validate_candidate` 与 restore-journal 原子交换。中途失败
+  （含 kill）时活跃数据库、staging 与未改动的 candidate 保持原样，可安全重
+  试且不会重复追加事件；已成功应用的会话 `status` 变为 `applied`，再次
+  `apply`/`abort`/`--merge <id>` 均按无活动会话处理。`apply --dry-run` 只校
+  验与报告（`applied:false`、`wouldApply`），不写入任何内容。
+- 针对 `unique_key` 冲突（引擎以语义唯一键而非行标识记录），`apply` 先删除
+  共享该语义键的落败行并写入 tombstone，再写入所选行，避免 UNIQUE 失败。
+  针对 `delete_vs_edit` 解析为删除的 task，`apply` 复用 `project prune` 的级
+  联删除路径：为 `checkpoint_corrections`/`handoffs`/`checkpoints`/
+  `progress_items`/`scopes`/`decisions`/`task_dependencies` 及 task 本身写
+  tombstone 并删除，同时解除 `sessions`/`worktrees`/`events.task_id` 与
+  `parent_task_id` 引用（design §1.3 rule 1 / AC5）。
+- `abort` 删除整个会话目录，不修改数据库、不写 journal；`abort --dry-run`
+  只报告（`aborted:false`、`operation.applied:false`）而不删除。
 
 信封命令名与 `data`：
 
@@ -595,9 +609,9 @@ carryctx conflict abort [--merge <id>]
 | ------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | list    | `conflict.list`    | `{mergeId,status,degraded,baseSource,counts,open,resolved,conflicts:[{id,kind,table,key,reason,resolution}],autoResolutions:[{table,key,kind,winner,reason}]}` |
 | show    | `conflict.show`    | `{mergeId,status,conflict:{id,kind,table,key,base,ours,theirs,reason,resolution}}`                                                                             |
-| resolve | `conflict.resolve` | `{mergeId,conflictId,choice,resolvedCount,openCount}`                                                                                                          |
+| resolve | `conflict.resolve` | `{mergeId,conflictId,choice,resolvedCount,openCount,operation:{applied}}`                                                                                      |
 | apply   | `conflict.apply`   | `{mergeId,applied,resolvedCount,conflicts,counts,path,preMergeBackupPath,warnings,operation:{applied}}`                                                        |
-| abort   | `conflict.abort`   | `{mergeId,aborted,operation:{applied:true}}`                                                                                                                   |
+| abort   | `conflict.abort`   | `{mergeId,aborted,operation:{applied}}`                                                                                                                        |
 
 `conflict list` 默认只列未解决冲突（`resolution == null`）；`--all` 额外
 包含已解决冲突与 `merge.json` 中的自动解决记录。`conflict show` 的文本 /
@@ -605,11 +619,11 @@ Markdown 输出渲染 base/ours/theirs 行与 policy reason。
 
 错误与退出码（公共 API）：
 
-| 条件                              | code                 | exit |
-| --------------------------------- | -------------------- | ---- |
-| `conflict apply` 仍有未解决冲突   | `MERGE_CONFLICTS`    | 3    |
-| 无活动合并会话 / 未知 conflict id | `RESOURCE_NOT_FOUND` | 7    |
-| `--set` 未知字段或非法 override   | `VALIDATION_FAILED`  | 8    |
+| 条件                                              | code                 | exit |
+| ------------------------------------------------- | -------------------- | ---- |
+| `conflict apply` 仍有未解决冲突                   | `MERGE_CONFLICTS`    | 3    |
+| 无活动会话 / 未知 conflict id / 已 `applied` 会话 | `RESOURCE_NOT_FOUND` | 7    |
+| `--set` 未知字段、非法 override、表名越界         | `VALIDATION_FAILED`  | 8    |
 
 `doctor` 额外报告活动合并会话（`merges.active`，含 `mergeId`、
 `createdAt`、`conflictCount`）；`createdAt` 超过 24 小时标记
