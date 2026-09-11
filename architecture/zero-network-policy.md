@@ -81,9 +81,11 @@ If multi-device synchronization is required in the future, it must be developed 
 
 The core CLI ships a `carryctx sync` command. It is **not** a network feature and does not violate §1:
 
-- `sync push` copies `<git-common-dir>/carryctx/state.sqlite` to `<remote>/<git-common-dir-name>.sqlite` with `std::fs::copy` (`crates/carryctx-*/src/application/sync.rs:32` transitional; pre-P2 at `carryctx-cli/src/application/sync.rs:32`).
-- `sync pull` copies that file back in the same way (`crates/carryctx-*/src/application/sync.rs:74` transitional; pre-P2 at `carryctx-cli/src/application/sync.rs:74`).
-- `--remote` is a required filesystem path with no default — pick a path you control (e.g. a Syncthing folder or NAS mount) (`crates/carryctx-*/src/commands/sync.rs:11`, `:17` transitional; pre-P5 at `carryctx-cli/src/commands/sync.rs:11`, `:17`).
+- `sync push` builds a verified snapshot of `<git-common-dir>/carryctx/state.sqlite` (`create_backup` + `validate_database_for_sync`) and publishes it by atomic rename to `<remote>/<git-common-dir-name>.sqlite`. It best-effort sweeps leaked stale `*.push_*` temp snapshots from the remote directory, and **never modifies local state**.
+- `sync pull` is journaled (`project.sync.pull`, `prepared` → `completed`): it stages a candidate copy, hard-links the original, atomic-renames the candidate into place, and is recovered by `recover_sync_journals` on the next command.
+- `--remote` is a required filesystem path with no default — pick a path you control (e.g. a Syncthing folder or NAS mount).
+
+**Process-kill limitation.** `sync push` is intentionally not journaled, because it is atomic and non-destructive: a killed push leaves the remote target old-or-new-complete and never puts local state at risk. A kill can leak an inert `<remote>/<name>.sqlite.push_<id>` temp file, which the next push sweeps. `sync pull` is journaled and self-heals after a kill.
 
 The binary contains no network stack, so `--remote` can only ever resolve to a path the operating system already exposes. Reaching another machine is possible only if the user has independently mounted remote storage (NFS, SMB, or similar) — the transport is then owned by the OS, not by `carryctx`, which matches the "External Responsibilities" rule in §2.
 
