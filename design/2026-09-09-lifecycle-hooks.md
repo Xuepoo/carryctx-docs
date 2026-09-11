@@ -117,6 +117,16 @@ Rules:
 
 ## 2. Trust model
 
+> **Superseded (CTX-0100, 2026-09-11):** the per-surface `trusted-hooks.json`
+> store and `carryctx hooks trust`/`untrust` commands below are replaced by
+> the unified project trust model in
+> `design/2026-09-11-project-trust-executable-policy.md`: one registry
+> (`trusted-projects.json` in `$XDG_STATE_HOME/carryctx/`), one top-level
+> `carryctx trust` command, and `TRUST_DENIED` (exit 9) instead of
+> `HOOKS_UNTRUSTED` (exit 3). The execution guardrails in §4 remain the
+> consumer contract; when the lifecycle executor lands it must call the
+> unified gate before spawning anything.
+
 Running `[[hooks.*]]` commands means auto-executing repository-provided
 code — a supply-chain boundary equivalent to Git hooks or `npm scripts`.
 Cloning a malicious repository and running CarryCtx must not execute its

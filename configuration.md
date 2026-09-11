@@ -112,6 +112,7 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/carryctx/
 ```text
 ~/.local/state/carryctx/
 ├── registry.sqlite
+├── trusted-projects.json   # 项目执行策略的本地信任决定（0600）
 ├── logs/
 ├── history/
 └── backups/
@@ -122,9 +123,15 @@ ${XDG_STATE_HOME:-$HOME/.local/state}/carryctx/
 - 已发现项目注册表
 - 最近访问的项目
 - 全局 Agent 使用记录
+- 项目执行策略（executable policy）的本地信任决定
 - CarryCtx 自身日志
 - 全局迁移记录
 - 不属于单个 Git 项目的持久状态
+
+`trusted-projects.json` 是 `carryctx trust` 的存储位置，按项目 id 记录信任
+决定与策略指纹。它属于用户本地持久状态，不属于任何 Git 项目；文件权限必须
+为 `0600`，父目录创建为 `0700`（Windows 上的 ACL 检查仍为已知缺口，见
+`design/2026-09-11-project-trust-executable-policy.md` §12）。
 
 `registry.sqlite` 只能作为项目索引，不能成为项目任务状态的唯一数据库。
 
@@ -418,6 +425,34 @@ color = "always"
 保存项目自定义扩展 Schema。
 
 第一版本只预留目录，不要求实现用户自定义数据实体。
+
+---
+
+## 3.6 全局安全配置 `[security]`（仅全局）
+
+项目执行策略（executable policy）的全局安全开关**只从全局配置读取**：
+
+```toml
+# ~/.config/carryctx/config.toml
+[security]
+allow_project_commands = false   # 默认：拒绝
+```
+
+说明：
+
+- `allow_project_commands` 是两道信任钥匙中的第一道。即使项目已在本地
+  `carryctx trust grant` 中受信，只要该值为 `false`，来自 `.carryctx/` 的
+  可执行策略（当前为 `[verification].commands`，未来包括 lifecycle hooks
+  与 automation shell/webhook）仍被拒绝执行。
+- 项目 `.carryctx/config.toml` 中的 `[security]` 表被**忽略并告警**，合并结果
+  始终取全局值。仓库无法自行放宽或收紧用户的安全姿态。
+- 内置动作（checkpoint、worktree cleanup、task 状态流转、event append）由
+  二进制自身代码实现，始终受信，不查询信任登记表。
+- 环境变量覆盖：`CARRYCTX_ALLOW_PROJECT_COMMANDS=true|false`；只有显式的
+  真值（`true`/`1`/`yes`/`on`）才会启用，其它任何值保持默认的拒绝姿态。
+
+完整威胁模型、失败关闭矩阵、登记表格式与 `carryctx trust` 流程见
+`design/2026-09-11-project-trust-executable-policy.md`。
 
 ---
 
@@ -792,7 +827,11 @@ CARRYCTX_TASK
 CARRYCTX_PROFILE
 CARRYCTX_NO_COLOR
 CARRYCTX_LOG
+CARRYCTX_ALLOW_PROJECT_COMMANDS
 ```
+
+`CARRYCTX_ALLOW_PROJECT_COMMANDS` 覆盖全局 `[security].allow_project_commands`；
+只有显式真值启用（见 §3.6）。
 
 优先级：
 
