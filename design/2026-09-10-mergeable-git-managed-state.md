@@ -518,12 +518,15 @@ fail-closed rules in §3.6 apply unchanged. The former `bitty-terminal`
 retired in favor of the in-repo default; the switch rolls out per repository,
 and an un-migrated repository keeps its mirror until its owning task lands.
 
-Redaction scope (known gap, tracked — not decided here): the export redactor
-rewrites secret-shaped values but currently leaves **host paths** intact,
-because worktree paths are re-anchored on import rather than redacted on
-export. Whether host paths should be redacted, and under which export profile,
-is left to the ctxpack hardening and privacy work in `ROADMAP.md`; this design
-does not decide it, and current redaction behavior is unchanged.
+Redaction scope: the export redactor rewrites secret-shaped values but
+currently leaves **host paths** intact, because worktree paths are re-anchored
+on import rather than redacted on export. Host-path redaction **MUST** be
+implemented as a tracked follow-up owned by `ROADMAP.md` item 3 (ctxpack
+hardening) and the TODO entry "Export profiles and privacy review"; the
+requirement is decided and not open. Only the mechanism and the export-profile
+choice remain open — which host fields are redacted, under which profile, and
+how redaction interacts with import-time re-anchoring. Current redaction
+behavior is unchanged by this design.
 
 ---
 
