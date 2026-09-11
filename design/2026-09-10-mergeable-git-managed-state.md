@@ -1,10 +1,11 @@
 # Mergeable, Git-Managed CarryCtx State (Merge Milestone Design)
 
 **Status:** Accepted (design PR #12, 2026-09-10); all §8 decisions ratified by
-DEC-0051/DEC-0052. Implementation is merged to `carryctx-cli` main but not yet
-released (latest release: v0.9.1): CTX-0139–CTX-0145 completed (schema 0018,
+DEC-0051/DEC-0052. Released in `carryctx` 0.10.0 (tag `v0.10.0`, GitHub release
+<https://github.com/Xuepoo/carryctx/releases/tag/v0.10.0>, published 2026-09-10):
+CTX-0139–CTX-0145 completed (schema 0018,
 ctxpack v2, three-way merge engine, `import --mode merge`, conflict UX,
-snapshot refs, two-parent merge snapshots); CTX-0146 in progress; the CTX-0147
+snapshot refs, two-parent merge snapshots); CTX-0146 completed; the CTX-0147
 docs sync has landed on this repository's main.
 
 **Task:** CTX-0138 (`carryctx-cli`; commander `cmd-001`). This is Phase 2 of
