@@ -247,6 +247,7 @@ carryctx handoff
 carryctx event
 carryctx search
 carryctx skill
+carryctx trust
 carryctx graph
 carryctx mcp
 ```
@@ -1689,6 +1690,82 @@ carryctx skill install --project
 
 ---
 
+# 26.1 `carryctx trust`（CTX-0100，experimental）
+
+管理来自 `.carryctx/` 的可执行策略信任。声明式配置始终可读；可执行的外部
+策略（当前为 `[verification].commands`）只有在全局安全门与本地项目信任同时
+满足时才允许执行。仓库自身永远不能授予信任。
+
+```text
+carryctx trust grant    # 写入本项目 id 的信任决定（必须 --yes）
+carryctx trust revoke   # 撤销（幂等，无需 --yes）
+carryctx trust list     # 列出本地登记表，无需 Git 项目
+carryctx trust status   # 报告当前项目的有效判定
+```
+
+全局安全门（仅全局配置）：
+
+```toml
+# ~/.config/carryctx/config.toml
+[security]
+allow_project_commands = false   # 默认 false
+```
+
+环境变量覆盖：`CARRYCTX_ALLOW_PROJECT_COMMANDS=true|false`。只有显式真值
+（`true`/`1`/`yes`/`on`）启用，其它值保持默认拒绝。项目
+`.carryctx/config.toml` 中的 `[security]` 被忽略并告警。
+
+登记表：
+
+```text
+${XDG_STATE_HOME:-$HOME/.local/state}/carryctx/trusted-projects.json
+```
+
+- 按 `project.id` 记录；父目录 `0700`、文件 `0600`，原子写入。
+- `schema_version` 缺失/未知、JSON 损坏、不可读或权限过宽时，按“未受信”
+  失败关闭，不部分信任。
+- `grant` 要求 `--yes`；缺少时返回 `INVALID_ARGUMENTS`（exit 2），不写登记表。
+  `grant` 还要求身份（`--agent`/`CARRYCTX_AGENT`）。
+- `--dry-run` 只打印将发生的变更，不写登记表、不追加事件。
+- 现有登记表损坏、过宽或不可读时，`grant` 拒绝覆盖并返回
+  `CONFIGURATION_ERROR`（exit 6）；`revoke` 则为带告警的 no-op。
+- `list` 不依赖 Git 项目；`status` 报告当前项目。
+
+`status` 的 `data`（snake_case）：
+
+```json
+{
+  "project_id": "01M0JJGJ9XV1RTWWK65JWEX6KN",
+  "project_name": "carryctx-cli",
+  "trusted": false,
+  "decided_at": null,
+  "decided_by": null,
+  "global_allow_project_commands": false,
+  "external_policy_present": true,
+  "external_policy_fingerprint": "sha256:...",
+  "command_count": 2,
+  "effective": "blocked",
+  "reason": "global_disabled",
+  "registry_state": "absent",
+  "registry_path": "~/.local/state/carryctx/trusted-projects.json"
+}
+```
+
+- `effective`：`allowed` | `blocked` | `not_applicable`
+- `reason`：`allowed` | `no_external_policy` | `global_disabled` |
+  `not_trusted` | `policy_changed`
+- `registry_state`：`absent` | `ok` | `malformed` | `unreadable` | `insecure`
+
+审计事件：`project.trust_granted`（payload
+`{policy_fingerprint, command_count}`）与 `project.trust_revoked`（payload
+`{}`）；payload 不包含命令文本。被阻止的外部动作返回 `TRUST_DENIED`
+（exit 9）。内置动作始终受信，不查询登记表。
+
+完整威胁模型与失败关闭矩阵见
+`design/2026-09-11-project-trust-executable-policy.md`。
+
+---
+
 # 27. JSON 输出规范
 
 ## 27.0 字段命名约定
@@ -1822,6 +1899,7 @@ JSON Envelope 结构（`schema_version`/`command`/`success`/`data`/`meta`）保�
 ```
 
 Exit code `3` 覆盖 `STATE_CONFLICT` 与 `MERGE_CONFLICTS` 两个公共错误码。
+Exit code `9` 覆盖 `PERMISSION_SCOPE` 与 `TRUST_DENIED`（CTX-0100）两个公共错误码。
 
 Exit Code 必须视为公共 API。
 
@@ -1886,6 +1964,7 @@ experimental:
   handoff
   decision
   task scope
+  trust
   skill install/list/path/doctor
   worktree create
   worktree bind/list/show/status/unbind/remove
