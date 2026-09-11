@@ -1105,6 +1105,20 @@ Team reference, the command resolves a single Team from `--task`,
 provided `--session` is still validated; an unknown session returns an error,
 but a valid session is never changed by these read-only commands.
 
+### Text and markdown output
+
+The default `--format text` output is human-readable. `team status` prints one
+compact summary line per Team (`Team <name> [<short-id>] — <n> members (<n>
+commanders, <n> subagents), <n> active tasks`); `team context` prints a
+one/two-line summary (`Team <name> — view <view>: <n> members, <n> tasks, <n>
+decisions, <n> handoffs`, plus a blockers line when the blockers array is
+non-empty). `--format markdown` renders GFM tables: a status table with one row
+per Team, and a context document with a members table plus tables for tasks,
+blockers, and recent events only when those arrays are non-empty. Pass
+`--verbose` to print the full pretty-printed record instead. `--json` remains
+the stable machine-readable envelope described below; the text and markdown
+renderers never change it.
+
 ### JSON contract
 
 Use `--json` for the stable machine-readable envelope. Team projections and
@@ -1686,9 +1700,13 @@ carryctx skill install --project
 `schema_version = 1` 的公共接口；消费者不得根据旧示例把它们转换为 camelCase。
 
 部分命令的 `data` 是历史上手工构造的投影，而不是实体记录本身，因此可能仍
-包含既有 camelCase 键（例如 `status` 的 `projectId`、`projectName` 和
-`activeSessions`）。这些命令的现有键保持不变，不能从本节的实体命名约定推断
-出一次性的全局重命名。
+包含既有 camelCase 键。`context` 投影保留 `projectId`、`projectName`、
+`currentTask`、`contextGraph`、`nodeCount`、`edgeCount`；`resume` 投影保留
+`projectId`、`currentSession`、`currentTask`、`latestCheckpoint`、
+`recentEvents`；`status` 投影保留 `projectId`、`projectName`、
+`activeSessions`。这些既有键在 `schema_version = 1` 下**冻结**：既不重命名，
+也没有计划中的版本化迁移。新的投影必须使用 snake_case，不能从本节的实体命名
+约定推断出一次性的全局重命名。
 
 Event 外层记录遵循实体命名约定，但 `payload` 是 append-only 的历史 JSON，
 其内部键不属于统一重编码的实体字段。已发布事件中两种形式都存在，例如
