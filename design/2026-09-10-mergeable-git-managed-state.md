@@ -8,6 +8,12 @@ ctxpack v2, three-way merge engine, `import --mode merge`, conflict UX,
 snapshot refs, two-parent merge snapshots); CTX-0146 completed; the CTX-0147
 docs sync has landed on this repository's main.
 
+**Update (2026-09-11):** the decision-4 public redacted publication follow-up
+shipped in `carryctx` 0.11.0 as `export --publication` (CTX-0155): it writes
+`manifest.redacted: true` and commits to the dedicated
+`refs/heads/carryctx-snapshots` ref, while redacted bundles stay refused as
+merge sources.
+
 **Task:** CTX-0138 (`carryctx-cli`; commander `cmd-001`). This is Phase 2 of
 `design/2026-09-09-ctxpack-export-import.md`, which deferred merge, three-way,
 DAG, and conflict UX, and it supersedes the "wait for observed conflicts before
@@ -480,9 +486,10 @@ merge fidelity (`***REDACTED***` would overwrite real values). Policy
 CTX-0122 ("publish project state snapshots to `carryctx-snapshots` branch") is
 re-scoped and remains blocked: PR #134 was closed unmerged on 2026-09-10 and
 its branch is kept as a reference implementation (DEC-0051 #7, DEC-0052). Its
-redacted-publication output folds into a publication follow-up that depends on
-CTX-0144/CTX-0145 (both completed) and is tracked by issue #138, which is still
-open. The public redacted publication ref stays
+redacted-publication output was a follow-up that depended on
+CTX-0144/CTX-0145 (both completed) and tracked by issue #138; that follow-up
+shipped in 0.11.0 as `export --publication` (CTX-0155). The public redacted
+publication ref stays
 `refs/heads/carryctx-snapshots`; the unredacted snapshot ref used by
 `export --snapshot` / `import --from-git` is local-only
 (`refs/carryctx/local`, §3.1/§3.6) and is never pushed. The `git_snapshot.rs`
@@ -607,8 +614,8 @@ Migration notes:
 
 All nine decisions below are **RATIFIED** by DEC-0051 and DEC-0052
 (`carryctx-cli`, 2026-09-10). Resolutions are recorded inline and the design
-text above follows them; issue #138 stays open only to track the decision-4
-publication follow-up.
+text above follows them; issue #138 tracked only the decision-4 publication
+follow-up, which shipped in 0.11.0 as `export --publication` (CTX-0155).
 
 1. **Conflict default strictness.** Is auto-LWW for `row_edit` acceptable as
    the default (with `--strict-edits` opt-in), or should edits block by
@@ -643,7 +650,7 @@ publication follow-up.
    _Ratified (DEC-0051 #7, DEC-0052): PR #134 closed unmerged (branch kept as a
    reference implementation); CTX-0122 stays blocked and re-scoped; redacted
    publication folds into a follow-up after CTX-0144/CTX-0145 (both completed)
-   tracked by issue #138._
+   tracked by issue #138; shipped in 0.11.0 as `export --publication` (CTX-0155)._
 8. **Format v1 support window.** How long must v1 bundles stay mergeable
    (degraded) before readers may require v2?
    _Ratified (DEC-0051 #8): v1 imports stay supported for one release cycle

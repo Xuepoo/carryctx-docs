@@ -1,8 +1,8 @@
 # CarryCtx CLI 命令规范
 
 **文档路径：** `carryctx-docs/cli-specification.md`
-**文档版本：** v0.10.0
-**适用版本：** CarryCtx v0.10.0 / v0.10.x
+**文档版本：** v0.11.0
+**适用版本：** CarryCtx v0.11.0 / v0.11.x
 
 ---
 

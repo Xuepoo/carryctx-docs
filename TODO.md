@@ -11,9 +11,9 @@ long-term invariants in `architecture/`. `ROADMAP.md` sets direction;
       `architecture/state-transport-boundary.md` §7 (CLI-repo work): extract the
       CLI, ctxpack-format, DB-schema, and skill-surface values from their sources
       of truth, compare the exact JSON shape, and fail on drift. The
-      `use-carryctx` surface is aligned as of 0.10.0 (skill frontmatter
-      `1.2.0`, `min_carryctx 0.10.0`, README `v0.10.0`; merge-milestone
-      contract values: ctxpack `format_version` `2`, DB schema `18`).
+      `use-carryctx` surface is aligned as of 0.11.0 (skill frontmatter
+      `1.3.0`, `min_carryctx 0.11.0`, README `v0.11.0`; contract values:
+      ctxpack `format_version` `2`, DB schema `18`).
 
 ## Lifecycle hooks
 
@@ -28,8 +28,6 @@ long-term invariants in `architecture/`. `ROADMAP.md` sets direction;
       `sessions.working_directory`, and re-anchor plus prune warnings.
 - [ ] Diff and inspection UX for bundles before import (including
       `snapshot log` / `snapshot diff`).
-- [ ] Redacted publication flow on the dedicated public
-      `refs/heads/carryctx-snapshots` ref (DEC-0052, issue #138).
 
 ## Docs single source of truth
 
@@ -62,3 +60,7 @@ long-term invariants in `architecture/`. `ROADMAP.md` sets direction;
 - Phase 4 marketplace and native-integration vision, plus the remote-sync
   and GitHub-sync roadmap items: removed as Core scope — inconsistent with
   the zero-network invariant (see the ADR §6 non-goals).
+- Redacted publication flow on the dedicated public
+  `refs/heads/carryctx-snapshots` ref (DEC-0052, issue #138): shipped in
+  0.11.0 as `export --publication`; `snapshot log` / `snapshot diff` remains
+  outstanding above.

@@ -85,8 +85,10 @@ refused by design.
    (`export --snapshot`, `import --from-git`, with two-parent merge commits).
    The boundary is unchanged: snapshot refs are local Git objects under
    `refs/carryctx/local`, `git push` and `git fetch` remain user transport, and
-   the binary neither pushes nor fetches. A public redacted publication flow and
-   `snapshot log/diff` UX remain follow-ups, not Core network features.
+   the binary neither pushes nor fetches. The public redacted publication flow
+   (`export --publication`, writing `manifest.redacted: true` to the dedicated
+   `refs/heads/carryctx-snapshots` ref) shipped in `0.11.0`; `snapshot log/diff`
+   UX remains a follow-up, not a Core network feature.
 2. **No native single-file compression in v1.** The interchange stays a
    `dir` layout (git-diff friendly, zero new dependencies); single-file
    movement is a documented external recipe
@@ -121,10 +123,10 @@ implements the check this section specifies — docs work stops at the spec.
 
 | Contract         | Source of truth                                                                                                                                                   | Current value                                                                                 |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `cli`            | `carryctx-cli/Cargo.toml`, `package.version` (runtime cross-check: `carryctx --version`, MCP `initialize` server info — both `env!("CARGO_PKG_VERSION")`)         | `0.10.0`                                                                                      |
+| `cli`            | `carryctx-cli/Cargo.toml`, `package.version` (runtime cross-check: `carryctx --version`, MCP `initialize` server info — both `env!("CARGO_PKG_VERSION")`)         | `0.11.0`                                                                                      |
 | `ctxpack-format` | `crates/carryctx-pack/src/manifest.rs` (`PACK_FORMAT` + `PACK_FORMAT_VERSION`)                                                                                    | `carryctx-pack-dir`, `format_version` `2` (v1 readable for one release cycle per DEC-0051 #8) |
 | `db-schema`      | `crates/carryctx-sqlite/src/database.rs` migration list (`bundled_schema_version`), matching `crates/carryctx-sqlite/migrations/project/NNNN_*.sql` (latest wins) | `18` (`0018_tombstones_snapshot_state`)                                                       |
-| `skill-surface`  | `carryctx-skills/skills/use-carryctx/SKILL.md` frontmatter `version`, plus the minimum CLI surface the skill claims to cover                                      | skill `1.2.0`; `min_carryctx 0.10.0` (0.8.x → 0.10.0 aligned)                                 |
+| `skill-surface`  | `carryctx-skills/skills/use-carryctx/SKILL.md` frontmatter `version`, plus the minimum CLI surface the skill claims to cover                                      | skill `1.3.0`; `min_carryctx 0.11.0` (0.8.x → 0.11.0 aligned)                                 |
 
 The check compares this exact JSON shape with strict equality; any mismatch
 fails the gate:
@@ -132,13 +134,13 @@ fails the gate:
 ```json
 {
   "contract_versions": {
-    "cli": "0.10.0",
+    "cli": "0.11.0",
     "ctxpack_format": { "format": "carryctx-pack-dir", "format_version": 2 },
     "db_schema": 18,
     "skill_surface": {
       "skill": "use-carryctx",
-      "version": "1.2.0",
-      "min_carryctx": "0.10.0"
+      "version": "1.3.0",
+      "min_carryctx": "0.11.0"
     }
   }
 }
@@ -161,7 +163,7 @@ Check procedure (normative for the wave-2 implementation):
    flag with stale examples fails the same gate.
 4. **Bump rule.** A version bump is one reviewable change: source-of-truth
    edit, plus this table, plus the `cli-specification.md`
-   applicability note, plus `CHANGELOG.md`. Tagging follows the 0.10.0/current gate
+   applicability note, plus `CHANGELOG.md`. Tagging follows the 0.11.0/current gate
    (ctxpack design §9, history anchor for 0.8.2 preserved): review closed, `cargo fmt --check`, Clippy with
    `-D warnings`, `cargo test`, markdownlint, package-smoke, and the
    acceptance matrix green.

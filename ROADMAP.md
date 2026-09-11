@@ -8,7 +8,7 @@ and not a TODO list. The core binary never initiates network connections
 local `export` / `import` composed with user-chosen transport
 (see `architecture/state-transport-boundary.md`).
 
-## Where we are (v0.10.0)
+## Where we are (v0.11.0)
 
 - Runtime truth: a Rust CLI over a SQLite project state at
   `<git-common-dir>/carryctx/state.sqlite`, shared by linked worktrees.
@@ -26,6 +26,10 @@ local `export` / `import` composed with user-chosen transport
   snapshot Git refs (`export --snapshot`, `import --from-git`), and
   two-parent merge snapshot commits after `--mode merge`/`conflict apply`.
   The local-only unredacted ref guard is in place (DEC-0052).
+- Release 0.11.0 ships the public redacted publication flow
+  (`export --publication` writes `manifest.redacted: true` to the dedicated
+  `refs/heads/carryctx-snapshots` ref) and the blank-session-ref foreign-key
+  fix (CTX-0155, CTX-0153).
 - History lives in `CHANGELOG.md`, verification evidence in `reports/`,
   and design records in `design/`.
 
@@ -49,8 +53,8 @@ state-transport boundary test before it is accepted.
    build on hooks — without network code in Core.
 3. **ctxpack hardening.** Export profiles and privacy review (hostname,
    paths, agent names, task text), machine-local field audit, and
-   diff/inspection UX. The semantic merge milestone shipped in 0.10.0; the
-   remaining work is the public redacted publication flow (DEC-0052) and
+   diff/inspection UX. The semantic merge milestone shipped in 0.10.0 and the
+   public redacted publication flow shipped in 0.11.0; the remaining work is
    `snapshot log` / `snapshot diff`.
 4. **Single user-manual source of truth.** `manual/` is normative and now
    documents the `export` / `import` lifecycle; the website manual generates
@@ -58,8 +62,8 @@ state-transport boundary test before it is accepted.
 
 ## Explicitly later
 
-- `snapshot log` / `snapshot diff` UX and the public redacted publication
-  flow (distinct `refs/heads/carryctx-snapshots` ref; DEC-0052).
+- `snapshot log` / `snapshot diff` UX (the distinct public
+  `refs/heads/carryctx-snapshots` ref itself shipped in 0.11.0; DEC-0052).
 - Multi-repository projects — only if the design passes the boundary test,
   and still with no network in Core.
 

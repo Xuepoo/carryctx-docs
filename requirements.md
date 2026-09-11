@@ -2,8 +2,8 @@
 
 **项目名称：** CarryCtx
 **英文定位：** Persistent project context for coding agents
-**文档版本：** v0.10.0
-**适用版本：** CarryCtx v0.10.x
+**文档版本：** v0.11.0
+**适用版本：** CarryCtx v0.11.x
 **产品阶段：** Requirements Draft
 **目标发布形式：** Native Rust CLI / Cargo, npm wrapper, and binary packages
 **默认命令：** `carryctx`
@@ -2499,7 +2499,7 @@ CarryCtx 默认不上传：
 
 # 20. 历史技术方案（v0.1，已废弃）
 
-本章保留 v0.1 的 TypeScript/Bun 设计记录，仅用于解释历史决策，不适用于 CarryCtx v0.10.x（历史实现涵盖 v0.8.x / v0.9.x，现行版本为 v0.10.x）。当前实现使用 Rust 2024、Cargo、SQLite（rusqlite）和原生 CLI 分发。
+本章保留 v0.1 的 TypeScript/Bun 设计记录，仅用于解释历史决策，不适用于 CarryCtx v0.11.x（历史实现涵盖 v0.8.x / v0.9.x / v0.10.x，现行版本为 v0.11.x）。当前实现使用 Rust 2024、Cargo、SQLite（rusqlite）和原生 CLI 分发。
 
 推荐包结构：
 

@@ -1,11 +1,11 @@
 # 项目与生命周期
 
-CarryCtx v0.10.0 是面向 Agent 与人类协作者的、local-first 的**全项目生命周期持久化与控制层**。
+CarryCtx v0.11.0 是面向 Agent 与人类协作者的、local-first 的**全项目生命周期持久化与控制层**。
 它把项目契约、任务关系、协作身份、工作会话、Git 工作区、进度、交接和审计记录保存在一个可恢复的项目状态中，使工作能够跨 Agent、窗口、Session
 和 worktree 延续。
 
 CarryCtx 不负责调度项目流程或执行 Agent。外部 harness 负责过程调度、Agent 执行、模型选择和验证；CarryCtx 负责持久化状态、提供确定性查询与安全的状态转换。
-v0.10.x 不提供通用的 Completion Gates 或已发布的 Automation Engine。
+v0.11.x 不提供通用的 Completion Gates 或已发布的 Automation Engine。
 `task.strict_completion` 和 evidence checkpoint 是可选的任务/检查点策略，不是独立的自动化编排系统。
 
 ## 生命周期链
@@ -64,7 +64,10 @@ init / project contract
     `<git-common-dir>/carryctx/merges/<id>/`，由
     `conflict list/show/resolve/apply/abort` 处理。`export --snapshot` /
     `import --from-git` 用本地 Git ref 离线携带快照 DAG；二进制从不
-    push/fetch，Git 传输由用户完成。完整命令与退出码见
+    push/fetch，Git 传输由用户完成。面向公众的脱敏发布用
+    `export --publication` 生成 `manifest.redacted: true` 并提交到专用
+    `refs/heads/carryctx-snapshots` ref；`git push` 由用户执行，脱敏 bundle
+    可 fresh/replace 导入但被拒绝作为 merge 源。完整命令与退出码见
     [`export/import` 规范 §12.1](../../cli-specification.md) 与
     [`conflict` 规范 §12.2](../../cli-specification.md)。
 
