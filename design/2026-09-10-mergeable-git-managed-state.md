@@ -12,7 +12,9 @@ docs sync has landed on this repository's main.
 shipped in `carryctx` 0.11.0 as `export --publication` (CTX-0155): it writes
 `manifest.redacted: true` and commits to the dedicated
 `refs/heads/carryctx-snapshots` ref, while redacted bundles stay refused as
-merge sources.
+merge sources. That ref is an in-repo artifact by default, and a separate
+`<repo>-workflow` mirror is an optional deployment choice rather than the
+default; see §3.8.
 
 **Task:** CTX-0138 (`carryctx-cli`; commander `cmd-001`). This is Phase 2 of
 `design/2026-09-09-ctxpack-export-import.md`, which deferred merge, three-way,
@@ -496,11 +498,41 @@ publication ref stays
 domain type in `carryctx-core` is a different concept (per-checkpoint worktree
 state).
 
+### 3.8 Publication topology: in-repo by default
+
+The redacted publication ref `refs/heads/carryctx-snapshots` is an **in-repo
+artifact by default**: it lives in the same repository that owns the project,
+next to the code, and the operator pushes it with an explicit refspec
+(`git push origin refs/heads/carryctx-snapshots`). The binary still never
+pushes or fetches (`architecture/state-transport-boundary.md` §4); it writes
+the ref through `export --publication`, and restore reads it back with
+`import --from-git refs/remotes/origin/carryctx-snapshots`.
+
+Publishing to a separate repository is an **optional deployment choice**, not
+the default. It remains valid where the source repository is private, where the
+engineering snapshot must be isolated from product history, or where
+publication permission must be decoupled from source write access. Any such
+mirror is publish-only and is never a merge source; the redaction and
+fail-closed rules in §3.6 apply unchanged. The former `bitty-terminal`
+`<repo>-workflow` mirrors are an instance of that optional deployment being
+retired in favor of the in-repo default; the switch rolls out per repository,
+and an un-migrated repository keeps its mirror until its owning task lands.
+
+Redaction scope: the export redactor rewrites secret-shaped values but
+currently leaves **host paths** intact, because worktree paths are re-anchored
+on import rather than redacted on export. Host-path redaction **MUST** be
+implemented as a tracked follow-up owned by `ROADMAP.md` item 3 (ctxpack
+hardening) and the TODO entry "Export profiles and privacy review"; the
+requirement is decided and not open. Only the mechanism and the export-profile
+choice remain open — which host fields are redacted, under which profile, and
+how redaction interacts with import-time re-anchoring. Current redaction
+behavior is unchanged by this design.
+
 ---
 
 ## 4. Rollout for the bitty-terminal repositories
 
-Current mechanism: seven repositories (`bitty`, `bitty-docs`,
+Previous mechanism (being retired): seven repositories (`bitty`, `bitty-docs`,
 `bitty-website`, `bitty-devtools`, `bitty-mcp`, `bitty-plugin-sdk`,
 `bitty-plugin-template`) publish redacted ctxpack directories to their
 `<repo>-workflow` mirrors on the mirror `main` branch, one
@@ -508,8 +540,15 @@ Current mechanism: seven repositories (`bitty`, `bitty-docs`,
 an export-time redaction pass, and a round-trip self-test. Mirrors are
 publish-only; merge-back is unsupported.
 
-**Decision: coexist now, converge the format later — and never make a
-public mirror a merge source.**
+**Direction (2026-09-11):** the default is in-repo publication on
+`refs/heads/carryctx-snapshots` through the native `export --publication` flow
+(§3.8). Separate mirrors survive only as the optional deployment §3.8 names;
+the `bitty-terminal` `<repo>-workflow` mirrors are being retired per repository.
+The stage table and format notes below still describe any deployment that uses
+a mirror, but no longer describe the default.
+
+**Previous decision (v0.10): coexist now, converge the format later — and never
+make a public mirror a merge source.**
 
 | Stage | Scope                                             | Action                                                                                                                                                                                                                                                |
 | ----- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
