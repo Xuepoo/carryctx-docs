@@ -1,8 +1,8 @@
 # CarryCtx CLI 命令规范
 
 **文档路径：** `carryctx-docs/cli-specification.md`
-**文档版本：** v0.11.0
-**适用版本：** CarryCtx v0.11.0 / v0.11.x
+**文档版本：** v0.11.4
+**适用版本：** CarryCtx v0.11.4 / v0.11.x
 
 ---
 
@@ -538,7 +538,7 @@ carryctx project migrate
 
 ---
 
-## 12.1 `carryctx export` / `carryctx import`（0.8.2 起引入；ctxpack v2 与 `--mode merge` 自 0.10.0 起现行；CTX-0144 起支持快照引用）
+## 12.1 `carryctx export` / `carryctx import`（0.8.2 起引入；ctxpack v2 与 `--mode merge` 自 0.10.0 起现行；CTX-0144 起支持快照引用；脱敏发布见 §12.1.3，0.11.0 起，主机路径脱敏自 0.11.1 起）
 
 离线优先的可移植状态交换格式，与传输方式无关（scp/ssh/NAS/Syncthing/rclone
 均由用户选择，二进制不含网络代码）。SQLite 仍是内部持久化格式；ctxpack
@@ -574,9 +574,15 @@ carryctx import --from-git <ref> [--mode replace|merge] [--base <dir|export-id|r
 
 - 新仓库导入等价于 `init`（复用包内 `project_id`）+ 落库 + 绝对路径重锚定，
   并追加 `project.imported` 事件；`.carryctx/config.toml` 已存在且 `project.id`
-  不一致时返回 `STATE_CONFLICT`。
-- 已初始化项目上裸 `import` 返回 `STATE_CONFLICT`（exit 3）并提示
-  `--mode replace`；`--mode replace --yes` 做整库替换。
+  不一致时返回 `STATE_CONFLICT`。自 0.11.2 起（CTX-0162），空数据库（无文件、
+  无 projects 表、或零 project 行，含已迁移但无项目行的库）同样走初始化路径，
+  目录导入与 `--from-git` 共用该判定，`--dry-run` 对空库报告
+  `would_replace: false`；而非此前经 replace 路径失败
+  `DATABASE_ERROR`（exit 5）。
+- 已初始化项目（库内已有 project 行）上裸 `import` 返回 `STATE_CONFLICT`
+  （exit 3）并提示 `--mode replace`；`--mode replace --yes` 做整库替换；
+  多 project 行的库仍视为 malformed。`--mode merge` 在未初始化目标上的拒绝
+  会指向上面的 `--from-git` 恢复命令。
 - `--mode merge`（CTX-0142/0143，详见 §12.2）在三方合并基础上：
   - base 解析顺序（design §2.1）：显式 `--base <dir|export-id|ref>` > export-id
     DAG 的最近公共祖先（本地 snapshot 缓存与 snapshot ref 历史，离线读取）>
@@ -725,6 +731,36 @@ git push <remote> refs/carryctx/local:refs/heads/state
 > 引用顺序，文本合并出的 tree 可能内部不一致。CarryCtx 自己完成语义合并并写入
 > 合并 commit；需要 Git 层操作时，先
 > `carryctx import --from-git ... --mode merge`，再 `export --snapshot`。
+
+### 12.1.3 脱敏发布（CTX-0155；主机路径脱敏自 0.11.1 起，CTX-0159）
+
+```bash
+carryctx export --pack-format dir -o ./pack/ --publication [--dry-run]
+```
+
+- `--publication` 把脱敏后的 bundle 作为一次 commit 写到专用公开 ref
+  `refs/heads/carryctx-snapshots`（每次发布一个 commit，与 `--snapshot`
+  相同的 Git plumbing 比较交换，不触碰索引、工作树或网络），并写入
+  `manifest.redacted: true`。本地未脱敏的 `refs/carryctx/local` ref 与
+  `snapshot_state` 不受影响；目标不可重定向（`--snapshot-ref` 与
+  `--publication` 联用以 `INVALID_ARGUMENTS`，exit 2 拒绝），未脱敏的
+  `--snapshot` 导出以该公开 ref 为目标同样被拒绝。
+- 脱敏只走发布路径，从不作用于本地快照：脱敏覆盖每个快照表行、
+  `project.json`（`repository_root`/`git_common_dir`）与 `manifest.source`
+  元数据。secret 形的值（`*_KEY`/`*_TOKEN`/`*_SECRET`/`*_PASSWORD`、
+  `GH_PAT`、`CLOUDFLARE_*`、`AWS_*`、`NAME=value` 自由文本对、40+ 字符
+  token 状连续串）替换为 `***REDACTED***`；自 0.11.1 起，主机标识路径
+  额外被中和：用户家目录前缀（`/home/<user>/`、`/Users/<user>/`、
+  `C:\Users\<user>\`）折叠为 `~/` 并保留尾部（用户名永不出现），主机根
+  （`/mnt/**`、`/media/**`、`/run/media/**`、`/private/var/**`、
+  `/var/folders/**`）整体折叠为 `***REDACTED-PATH***`（主机根尾部无法
+  证明不含用户名，按 fail-closed 处理）。URL、Git SHA-1、良性 slug 与
+  多字节文本不受影响。
+- 脱敏 bundle 是发布产物：fresh/replace 导入可接受，但作为 merge 源以
+  `UNSUPPORTED_OPERATION`（exit 10）拒绝；脱敏发布要求 ctxpack v2
+  （schema 18），旧库先迁移再发布。`push`/`fetch` 始终是用户侧传输，
+  二进制不联网；从公开脱敏包恢复 clone 用
+  `carryctx import --from-git <ref> --mode replace`。
 
 ---
 
@@ -1613,13 +1649,22 @@ a `worktree.pruned` audit event for each removed registration.
 上下文依赖图（AST/文件级）的维护与导出：
 
 ```text
-carryctx graph edges <node>
+carryctx graph edges <target>
 carryctx graph add-node --node-type <type> --name <name>
 carryctx graph link <source> <target> <relation>
 carryctx graph extract-deps <path>
 carryctx graph scan
 carryctx graph export <format>
 ```
+
+`edges` 的 `<target>` 自 0.11.4 起（CTX-0168）按 ULID 精确匹配、节点名
+精确匹配、节点名无歧义后缀（`ends_with`，与 `export --focus` 一致的顺序）
+解析；唯一命中返回该节点的边，未命中返回 `RESOURCE_NOT_FOUND`，多命中
+返回 `VALIDATION_FAILED` 并列出 `"<name>" (<id>)` 候选。
+
+`extract-deps` / `scan` 自 0.11.4 起（CTX-0169）展开 Rust brace 分组
+`use`（`use crate::path::{a, b};` 含嵌套分组、`self`/`Self`、glob、`as`
+别名）为逐个模块依赖；任何含字面量 `{`、`}` 或 `*` 的片段永不作为依赖输出。
 
 写操作（`add-node` / `link` / `extract-deps` / `scan`）支持 `--dry-run`
 （0.7.0 起）：
