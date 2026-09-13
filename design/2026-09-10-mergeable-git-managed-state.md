@@ -16,6 +16,14 @@ merge sources. That ref is an in-repo artifact by default, and a separate
 `<repo>-workflow` mirror is an optional deployment choice rather than the
 default; see §3.8.
 
+**Update (2026-09-11):** the host-path redaction follow-up shipped in
+`carryctx` 0.11.1 as `export --publication` hardening (CTX-0159): user-home
+prefixes collapse to `~/` with the tail preserved, host roots (`/mnt/**`,
+`/media/**`, `/run/media/**`, `/private/var/**`, `/var/folders/**`)
+collapse to `***REDACTED-PATH***`, applied to every published row,
+`project.json`, and `manifest.source`, while the unredacted local
+`refs/carryctx/local` snapshots keep the real paths.
+
 **Task:** CTX-0138 (`carryctx-cli`; commander `cmd-001`). This is Phase 2 of
 `design/2026-09-09-ctxpack-export-import.md`, which deferred merge, three-way,
 DAG, and conflict UX, and it supersedes the "wait for observed conflicts before
@@ -518,15 +526,18 @@ fail-closed rules in §3.6 apply unchanged. The former `bitty-terminal`
 retired in favor of the in-repo default; the switch rolls out per repository,
 and an un-migrated repository keeps its mirror until its owning task lands.
 
-Redaction scope: the export redactor rewrites secret-shaped values but
-currently leaves **host paths** intact, because worktree paths are re-anchored
-on import rather than redacted on export. Host-path redaction **MUST** be
-implemented as a tracked follow-up owned by `ROADMAP.md` item 3 (ctxpack
-hardening) and the TODO entry "Export profiles and privacy review"; the
-requirement is decided and not open. Only the mechanism and the export-profile
-choice remain open — which host fields are redacted, under which profile, and
-how redaction interacts with import-time re-anchoring. Current redaction
-behavior is unchanged by this design.
+Redaction scope: the export redactor rewrites secret-shaped values, and since
+0.11.1 (CTX-0159) it also neutralizes **host paths** in every published row,
+`project.json`, and `manifest.source`: user-home prefixes collapse to `~/`
+with the tail preserved, host roots collapse to `***REDACTED-PATH***`, while
+URLs, Git SHA-1s, benign slugs, and multibyte text are left intact. Worktree
+paths in the unredacted local snapshots keep the real paths and are still
+re-anchored on import rather than redacted on export. The former open question
+— which host fields are redacted, under which profile, and how redaction
+interacts with import-time re-anchoring — is answered for the publication path
+by CTX-0159; export profiles beyond `--publication` remain future work owned
+by `ROADMAP.md` item 3 (ctxpack hardening) and the TODO entry "Export
+profiles and privacy review".
 
 ---
 
