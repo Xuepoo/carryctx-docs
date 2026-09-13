@@ -8,7 +8,7 @@ and not a TODO list. The core binary never initiates network connections
 local `export` / `import` composed with user-chosen transport
 (see `architecture/state-transport-boundary.md`).
 
-## Where we are (v0.11.0)
+## Where we are (v0.11.4)
 
 - Runtime truth: a Rust CLI over a SQLite project state at
   `<git-common-dir>/carryctx/state.sqlite`, shared by linked worktrees.
@@ -30,6 +30,31 @@ local `export` / `import` composed with user-chosen transport
   (`export --publication` writes `manifest.redacted: true` to the dedicated
   `refs/heads/carryctx-snapshots` ref) and the blank-session-ref foreign-key
   fix (CTX-0155, CTX-0153).
+- Release 0.11.1 hardens that publication flow (CTX-0159): in addition to
+  secret redaction, `export --publication` now neutralizes host-identifying
+  paths in every published row, in `project.json`
+  (`repository_root`/`git_common_dir`), and in `manifest.source` — user-home
+  prefixes collapse to `~/` with the tail preserved, host roots
+  (`/mnt/**`, `/media/**`, `/run/media/**`, `/private/var/**`,
+  `/var/folders/**`) collapse to `***REDACTED-PATH***`, while URLs, Git
+  SHA-1s, benign slugs, and multibyte text are left intact. The unredacted
+  local `refs/carryctx/local` snapshots keep the real paths, and redacted
+  bundles stay refused as merge sources.
+- Release 0.11.2 fixes fresh-clone restore into an empty migrated database
+  (CTX-0162, #184): a database with schema but zero project rows is now
+  classified as empty and initialized from the bundle on both the directory
+  and `--from-git` paths instead of failing `DATABASE_ERROR` (exit 5), and
+  text-mode `stats` hints at the in-repo publication restore path when local
+  state is empty (#183).
+- Release 0.11.3 ships the executable project policy trust gate (CTX-0100:
+  `[verification].commands` run only with global
+  `[security].allow_project_commands = true` plus a matching local trust
+  entry, new `trust grant|revoke|list|status`, `TRUST_DENIED` exit 9) and
+  automatic `when_idle` worktree cleanup draining (CTX-0165, #188-#190).
+- Release 0.11.4 fixes the context-graph UX gaps (CTX-0168/CTX-0169, #191,
+  #192): `graph edges` resolves nodes by ULID, exact name, or unambiguous
+  name suffix, and Rust `extract-deps`/`scan` expand brace-grouped `use`
+  imports into individual dependencies instead of emitting brace paths.
 - History lives in `CHANGELOG.md`, verification evidence in `reports/`,
   and design records in `design/`.
 
@@ -53,8 +78,9 @@ state-transport boundary test before it is accepted.
    build on hooks — without network code in Core.
 3. **ctxpack hardening.** Export profiles and privacy review (hostname,
    paths, agent names, task text), machine-local field audit, and
-   diff/inspection UX. The semantic merge milestone shipped in 0.10.0 and the
-   public redacted publication flow shipped in 0.11.0; the remaining work is
+   diff/inspection UX. The semantic merge milestone shipped in 0.10.0, the
+   public redacted publication flow shipped in 0.11.0 and its host-path
+   redaction hardening shipped in 0.11.1; the remaining work is
    `snapshot log` / `snapshot diff`.
 4. **Single user-manual source of truth.** `manual/` is normative and now
    documents the `export` / `import` lifecycle; the website manual generates

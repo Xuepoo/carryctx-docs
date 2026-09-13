@@ -1,6 +1,6 @@
 # 项目与生命周期
 
-CarryCtx v0.11.0 是面向 Agent 与人类协作者的、local-first 的**全项目生命周期持久化与控制层**。
+CarryCtx v0.11.4 是面向 Agent 与人类协作者的、local-first 的**全项目生命周期持久化与控制层**。
 它把项目契约、任务关系、协作身份、工作会话、Git 工作区、进度、交接和审计记录保存在一个可恢复的项目状态中，使工作能够跨 Agent、窗口、Session
 和 worktree 延续。
 
@@ -62,11 +62,17 @@ init / project contract
     `carryctx import <dir> --mode merge`（可配 `--base`、`--require-base`、
     `--strict-edits`）做三方合并；阻断冲突以 `MERGE_CONFLICTS`（exit 3）落到
     `<git-common-dir>/carryctx/merges/<id>/`，由
-    `conflict list/show/resolve/apply/abort` 处理。`export --snapshot` /
+    `conflict list/show/resolve/apply/abort` 处理。自 0.11.2 起，空数据库
+    （无文件、无 projects 表、或零 project 行，含已迁移但无项目行的库）
+    直接走初始化路径，目录导入与 `--from-git` 一致，不再经 replace 路径
+    失败。`export --snapshot` /
     `import --from-git` 用本地 Git ref 离线携带快照 DAG；二进制从不
     push/fetch，Git 传输由用户完成。面向公众的脱敏发布用
     `export --publication` 生成 `manifest.redacted: true` 并提交到专用
-    `refs/heads/carryctx-snapshots` ref；`git push` 由用户执行，脱敏 bundle
+    `refs/heads/carryctx-snapshots` ref（0.11.0 起）；自 0.11.1 起，脱敏额外
+    中和主机标识路径（家目录前缀折叠为 `~/`，`/mnt/**`、`/media/**`、
+    `/run/media/**`、`/private/var/**`、`/var/folders/**` 折叠为
+    `***REDACTED-PATH***`），本地未脱敏快照保留真实路径。`git push` 由用户执行，脱敏 bundle
     可 fresh/replace 导入但被拒绝作为 merge 源。完整命令与退出码见
     [`export/import` 规范 §12.1](../../cli-specification.md) 与
     [`conflict` 规范 §12.2](../../cli-specification.md)。
