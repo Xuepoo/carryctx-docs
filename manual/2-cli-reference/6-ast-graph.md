@@ -1,8 +1,10 @@
 # AST 语法树图谱
 
 - `carryctx graph scan`: 扫描并更新本地代码图谱。
-- `carryctx graph query`: 搜索特定文件或符号的调用者。
-- `carryctx graph explain`: 生成某个组件的语义解释。
+- `carryctx graph extract-deps <path>`: 按需从单个文件提取 `depends_on` 边。
+- `carryctx graph edges <target>`: 列出与某节点相连的所有边（ULID、精确
+  节点名或无歧义名称后缀均可，0.11.4 起）。
+- `carryctx graph add-node` / `graph link`: 手动建节点、连边。
 - `carryctx graph export`: 导出图谱结构。
 
 JSON 信封约定（0.6.0 起）：
